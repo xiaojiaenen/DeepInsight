@@ -3,7 +3,8 @@ import { Canvas } from '@react-three/fiber'
 import { Grid, OrbitControls } from '@react-three/drei'
 import { subscribeVisualAction } from '../../features/visualization/visualBus'
 import type { VisualAction, VisualPatch } from '../../features/visualization/visualActions'
-import { defaultVisualState, type VisualState } from '../../features/visualization/visualTypes'
+import { defaultVisualState, type VisualMode, type VisualState } from '../../features/visualization/visualTypes'
+import { MatrixVisualizer } from './MatrixVisualizer'
 
 const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
 
@@ -20,23 +21,48 @@ const toColor = (v: unknown, fallback: string): string => {
   return typeof v === 'string' ? v : fallback
 }
 
+const toMode = (v: unknown, fallback: VisualMode): VisualMode => {
+  if (v === 'cube' || v === 'matrix') return v
+  return fallback
+}
+
+const toMatrix2x2 = (v: unknown, fallback: VisualState['matrix2x2']): VisualState['matrix2x2'] => {
+  if (!Array.isArray(v) || v.length < 2) return fallback
+  const r0 = v[0]
+  const r1 = v[1]
+  if (!Array.isArray(r0) || !Array.isArray(r1) || r0.length < 2 || r1.length < 2) return fallback
+  const a = r0[0]
+  const b = r0[1]
+  const c = r1[0]
+  const d = r1[1]
+  if (!isFiniteNumber(a) || !isFiniteNumber(b) || !isFiniteNumber(c) || !isFiniteNumber(d)) return fallback
+  return [
+    [a, b],
+    [c, d],
+  ]
+}
+
 const sanitizePatch = (patch: VisualPatch): VisualPatch => {
   const src = patch as Record<string, unknown>
   const next: VisualPatch = {}
+  if ('mode' in src) next.mode = toMode(src.mode, defaultVisualState.mode)
   if ('cubeRotation' in src) next.cubeRotation = toVec3(src.cubeRotation, defaultVisualState.cubeRotation)
   if ('cubePosition' in src) next.cubePosition = toVec3(src.cubePosition, defaultVisualState.cubePosition)
   if ('cubeScale' in src) next.cubeScale = toVec3(src.cubeScale, defaultVisualState.cubeScale)
   if ('cubeColor' in src) next.cubeColor = toColor(src.cubeColor, defaultVisualState.cubeColor)
+  if ('matrix2x2' in src) next.matrix2x2 = toMatrix2x2(src.matrix2x2, defaultVisualState.matrix2x2)
   return next
 }
 
 const mergeVisualState = (prev: VisualState, patch: VisualPatch): VisualState => {
   const p = sanitizePatch(patch)
   return {
+    mode: p.mode ?? prev.mode,
     cubeRotation: p.cubeRotation ?? prev.cubeRotation,
     cubePosition: p.cubePosition ?? prev.cubePosition,
     cubeScale: p.cubeScale ?? prev.cubeScale,
     cubeColor: p.cubeColor ?? prev.cubeColor,
+    matrix2x2: p.matrix2x2 ?? prev.matrix2x2,
   }
 }
 
@@ -83,11 +109,17 @@ const lerpColor = (a: string, b: string, t: number) => {
 }
 
 const lerpVisualState = (a: VisualState, b: VisualState, t: number): VisualState => {
+  const m: VisualState['matrix2x2'] = [
+    [lerp(a.matrix2x2[0][0], b.matrix2x2[0][0], t), lerp(a.matrix2x2[0][1], b.matrix2x2[0][1], t)],
+    [lerp(a.matrix2x2[1][0], b.matrix2x2[1][0], t), lerp(a.matrix2x2[1][1], b.matrix2x2[1][1], t)],
+  ]
   return {
+    mode: t < 0.5 ? a.mode : b.mode,
     cubeRotation: lerpVec3(a.cubeRotation, b.cubeRotation, t),
     cubePosition: lerpVec3(a.cubePosition, b.cubePosition, t),
     cubeScale: lerpVec3(a.cubeScale, b.cubeScale, t),
     cubeColor: lerpColor(a.cubeColor, b.cubeColor, t),
+    matrix2x2: m,
   }
 }
 
@@ -174,10 +206,14 @@ export const VisualCanvas: React.FC = () => {
         sectionColor="#cbd5e1"
         cellColor="#e2e8f0"
       />
-      <mesh position={state.cubePosition} rotation={state.cubeRotation} scale={state.cubeScale}>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color={state.cubeColor} />
-      </mesh>
+      {state.mode === 'matrix' ? (
+        <MatrixVisualizer matrix={state.matrix2x2} />
+      ) : (
+        <mesh position={state.cubePosition} rotation={state.cubeRotation} scale={state.cubeScale}>
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial color={state.cubeColor} />
+        </mesh>
+      )}
     </Canvas>
   )
 }

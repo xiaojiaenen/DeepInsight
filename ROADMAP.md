@@ -62,8 +62,8 @@
     - [x] 开发 `TimelineController`：播放/暂停/拖动，触发交互事件。
 - [ ] **Demo 课程: 矩阵变换**
     - [ ] 制作/Mock 一段 Manim 视频（矩阵乘法介绍）。
-    - [ ] 开发 `MatrixVisualizer` 组件（3D 向量/网格）。
-    - [ ] 实现联动：代码修改矩阵数值 -> 3D 箭头实时旋转。
+    - [x] 开发 `MatrixVisualizer` 组件（3D 向量/网格）。
+    - [x] 实现联动：Lesson 事件 / __VIS__ 修改矩阵数值 -> 3D 箭头实时变化。
 
 ---
 

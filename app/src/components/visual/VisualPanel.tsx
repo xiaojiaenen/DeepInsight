@@ -6,6 +6,7 @@ export const VisualPanel: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const useVideo = useMemo(() => videoUrl != null, [videoUrl])
+  const [lessonUrl, setLessonUrl] = useState('/lessons/demo-visual.json')
 
   useEffect(() => {
     return () => {
@@ -28,6 +29,14 @@ export const VisualPanel: React.FC = () => {
         输出 "__VIS__ : &lt;JSON&gt;" 将通过 Kernel 转为 vis 消息联动
       </div>
       <div className="absolute right-3 top-3 flex items-center gap-2">
+        <select
+          className="text-xs text-slate-600 bg-white/90 backdrop-blur px-2 py-1 rounded border border-slate-200"
+          value={lessonUrl}
+          onChange={(e) => setLessonUrl(e.target.value)}
+        >
+          <option value="/lessons/demo-visual.json">demo-visual</option>
+          <option value="/lessons/demo-matrix.json">demo-matrix</option>
+        </select>
         <label className="text-xs text-slate-600 bg-white/90 backdrop-blur px-2 py-1 rounded border border-slate-200 cursor-pointer">
           选择视频
           <input
@@ -58,7 +67,7 @@ export const VisualPanel: React.FC = () => {
           </button>
         ) : null}
       </div>
-      <LessonController videoRef={videoRef} useVideo={useVideo} />
+      <LessonController url={lessonUrl} videoRef={videoRef} useVideo={useVideo} />
     </div>
   )
 }
