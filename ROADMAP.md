@@ -57,8 +57,8 @@
     - [ ] 封装 HTML5 Video 播放器，支持精确跳转。
     - [ ] 实现“隐藏式”播放：视频层在下，Canvas 层在上（透明背景）。
 - [ ] **Lesson Protocol (课程协议) 实现**
-    - [ ] 定义 `Lesson` JSON Schema (视频时间轴 vs 交互事件)。
-    - [ ] 开发 `TimelineController`：监听视频 `timeupdate`，触发交互组件挂载。
+    - [x] 定义 `Lesson` JSON Schema（duration + events）。
+    - [x] 开发 `TimelineController`：播放/暂停/拖动，触发交互事件。
 - [ ] **Demo 课程: 矩阵变换**
     - [ ] 制作/Mock 一段 Manim 视频（矩阵乘法介绍）。
     - [ ] 开发 `MatrixVisualizer` 组件（3D 向量/网格）。
