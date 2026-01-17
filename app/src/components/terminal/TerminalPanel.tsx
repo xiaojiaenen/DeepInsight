@@ -61,7 +61,8 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => 
       raf2 = requestAnimationFrame(() => {
         try {
           fitAddon.fit();
-        } catch {
+        } catch (e) {
+          void e
         }
       });
     });
@@ -75,7 +76,8 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => 
     const resizeObserver = new ResizeObserver(() => {
       try {
         fitAddon.fit();
-      } catch {
+      } catch (e) {
+        void e
       }
     });
     resizeObserver.observe(terminalRef.current);

@@ -3,6 +3,7 @@ import Editor, { loader } from '@monaco-editor/react';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import 'monaco-editor/esm/vs/editor/editor.all';
 import 'monaco-editor/esm/vs/basic-languages/python/python.contribution';
+import type { OnMount } from '@monaco-editor/react';
 
 loader.config({ monaco });
 
@@ -18,8 +19,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   onChange 
 }) => {
   
-  const handleEditorDidMount = (editor: any, monaco: any) => {
-    monaco.editor.defineTheme('clean-light', {
+  const handleEditorDidMount: OnMount = (_editor, monacoInstance) => {
+    monacoInstance.editor.defineTheme('clean-light', {
       base: 'vs',
       inherit: true,
       rules: [],
@@ -28,7 +29,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         'editor.lineHighlightBackground': '#f1f5f9',
       }
     });
-    monaco.editor.setTheme('clean-light');
+    monacoInstance.editor.setTheme('clean-light');
   };
 
   return (

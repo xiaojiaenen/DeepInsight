@@ -1,0 +1,76 @@
+import { useEffect, useRef, useState } from 'react'
+import { KernelClient, type KernelMessage } from '../../lib/kernelClient'
+import { terminalClear, terminalWrite, terminalWriteLine } from '../../lib/terminalBus'
+
+type UseKernelResult = {
+  pythonBadge: string
+  run: (code: string) => void
+}
+
+const DEFAULT_TIMEOUT_S = 30
+
+export function useKernel(): UseKernelResult {
+  const [pythonBadge, setPythonBadge] = useState('')
+  const clientRef = useRef<KernelClient | null>(null)
+
+  useEffect(() => {
+    const normalizeForTerminal = (s: string) => s.replace(/\r?\n/g, '\r\n')
+
+    const client = new KernelClient({
+      onStatus: (s) => {
+        if (s === 'connecting') terminalWriteLine('正在连接 Kernel...')
+        if (s === 'open') terminalWriteLine('Kernel 已连接。')
+        if (s === 'closed') terminalWriteLine('Kernel 连接已断开。')
+        if (s === 'error') terminalWriteLine('Kernel 连接发生错误。')
+      },
+      onMessage: (msg: KernelMessage) => {
+        if (msg.type === 'hello') {
+          const full = (msg.python ?? '').trim()
+          const version = full.split(' ')[0] ?? ''
+          if (version) setPythonBadge(version)
+          terminalWriteLine(`Python: ${full}`)
+          if (msg.executable) terminalWriteLine(`解释器: ${msg.executable}`)
+          return
+        }
+        if (msg.type === 'start') {
+          terminalWriteLine('开始运行...')
+          return
+        }
+        if (msg.type === 'stdout') {
+          terminalWrite(normalizeForTerminal(msg.data))
+          return
+        }
+        if (msg.type === 'stderr') {
+          terminalWrite(normalizeForTerminal(msg.data))
+          return
+        }
+        if (msg.type === 'done') {
+          if (msg.timed_out) terminalWriteLine('运行超时。')
+          terminalWriteLine(`进程退出码: ${msg.exit_code}`)
+          terminalWriteLine('运行结束。')
+          return
+        }
+        if (msg.type === 'error') {
+          terminalWriteLine(`错误: ${msg.message}`)
+        }
+      },
+    })
+
+    client.connect()
+    clientRef.current = client
+
+    return () => {
+      clientRef.current = null
+    }
+  }, [])
+
+  const run = (code: string) => {
+    terminalClear()
+    terminalWriteLine('DeepInsight 运行器')
+    terminalWriteLine('--------------------------------')
+    clientRef.current?.exec(code, DEFAULT_TIMEOUT_S)
+  }
+
+  return { pythonBadge, run }
+}
+

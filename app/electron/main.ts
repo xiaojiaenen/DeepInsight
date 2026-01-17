@@ -5,7 +5,6 @@ import net from 'node:net'
 import path from 'node:path'
 
 const DIST = path.join(__dirname, '../dist')
-const PUBLIC = app.isPackaged ? DIST : path.join(DIST, '../public')
 
 let win: BrowserWindow | null
 let kernelProc: ChildProcessWithoutNullStreams | null = null
@@ -50,7 +49,8 @@ async function ensureKernelEnv() {
     const desired = process.env.DEEPINSIGHT_PYTHON ?? '3.12'
     try {
       await runOnce('uv', ['python', 'install', desired], kernelDir)
-    } catch {
+    } catch (e) {
+      console.warn('[kernel] uv python install failed', e)
     }
     try {
       await runOnce('uv', ['venv', '--python', desired], kernelDir)
@@ -69,7 +69,8 @@ async function startKernel() {
     const done = (v: boolean) => {
       try {
         socket.destroy()
-      } catch {
+      } catch (e) {
+        void e
       }
       resolve(v)
     }
@@ -89,7 +90,8 @@ function stopKernel() {
   if (!kernelProc) return
   try {
     kernelProc.kill()
-  } catch {
+  } catch (e) {
+    void e
   }
   kernelProc = null
 }
