@@ -7,7 +7,8 @@ export function terminalWrite(text: string) {
 }
 
 export function terminalWriteLine(text: string) {
-  terminalWrite(text.endsWith('\n') ? text : `${text}\n`)
+  const normalized = text.replace(/\r?\n/g, '\r\n')
+  terminalWrite(normalized.endsWith('\r\n') ? normalized : `${normalized}\r\n`)
 }
 
 export function terminalClear() {
@@ -28,4 +29,3 @@ export function subscribeTerminalClear(handler: () => void) {
   bus.addEventListener('terminal:clear', listener)
   return () => bus.removeEventListener('terminal:clear', listener)
 }
-

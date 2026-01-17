@@ -35,21 +35,24 @@ export const MainLayout: React.FC<LayoutProps> = ({ children, onRun }) => {
           <div className="flex-1" />
           <NavItem icon={<Settings className="w-4 h-4" />} label="设置" />
         </nav>
-
-        <div className="px-3 pb-3" style={{ WebkitAppRegion: 'no-drag' } as any}>
-          <button
-            className="w-full h-10 rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors text-sm font-medium flex items-center justify-center gap-2"
-            onClick={() => onRun?.()}
-          >
-            <Play className="w-4 h-4 fill-white" />
-            运行
-          </button>
-        </div>
       </aside>
 
       <main className="flex-1 flex flex-col relative bg-white">
-        <div className="h-10 border-b border-slate-100 flex items-center justify-end px-2 bg-white" style={{ WebkitAppRegion: 'drag' } as any}>
-          <div style={{ WebkitAppRegion: 'no-drag' } as any}>
+        <div className="h-12 border-b border-slate-100 flex items-center px-3 bg-white" style={{ WebkitAppRegion: 'drag' } as any}>
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            <span className="font-medium text-slate-900">未命名项目</span>
+            <span className="text-slate-400">·</span>
+            <span className="text-slate-500">本地运行</span>
+          </div>
+
+          <div className="ml-auto flex items-center gap-2" style={{ WebkitAppRegion: 'no-drag' } as any}>
+            <button
+              className="h-9 px-4 rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+              onClick={() => onRun?.()}
+            >
+              <Play className="w-4 h-4 fill-white" />
+              运行
+            </button>
             <WindowControls />
           </div>
         </div>

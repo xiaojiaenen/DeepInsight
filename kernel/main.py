@@ -24,17 +24,23 @@ async def _read_stream_lines(stream: asyncio.StreamReader, on_line) -> None:
         line = await stream.readline()
         if not line:
             break
-        await on_line(line.decode(errors="replace"))
+        await on_line(line.decode("utf-8", errors="replace"))
 
 
 async def _execute_python(code: str, timeout_s: float, websocket: WebSocket) -> None:
+    env = dict(**__import__("os").environ)
+    env["PYTHONUTF8"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
     proc = await asyncio.create_subprocess_exec(
         sys.executable,
+        "-X",
+        "utf8",
         "-u",
         "-c",
         code,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
+        env=env,
     )
 
     async def send_stdout(line: str) -> None:

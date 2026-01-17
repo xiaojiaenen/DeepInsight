@@ -14,6 +14,8 @@ function App() {
   const clientRef = useRef<KernelClient | null>(null);
 
   useEffect(() => {
+    const normalizeForTerminal = (s: string) => s.replace(/\r?\n/g, '\r\n')
+
     const client = new KernelClient({
       onStatus: (s) => {
         if (s === 'connecting') terminalWriteLine('正在连接 Kernel...')
@@ -35,11 +37,11 @@ function App() {
           return
         }
         if (msg.type === 'stdout') {
-          terminalWrite(msg.data)
+          terminalWrite(normalizeForTerminal(msg.data))
           return
         }
         if (msg.type === 'stderr') {
-          terminalWrite(msg.data)
+          terminalWrite(normalizeForTerminal(msg.data))
           return
         }
         if (msg.type === 'done') {

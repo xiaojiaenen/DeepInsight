@@ -17,6 +17,7 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => 
     if (!terminalRef.current) return;
 
     const term = new Terminal({
+      convertEol: true,
       theme: {
         background: '#ffffff',
         foreground: '#374151',
@@ -41,7 +42,8 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => 
       },
       fontFamily: "'JetBrains Mono', 'Menlo', 'Consolas', monospace",
       fontSize: 13,
-      lineHeight: 1.4,
+      lineHeight: 1.25,
+      letterSpacing: 0,
       cursorBlink: true,
       cursorStyle: 'bar',
       cursorWidth: 2,
@@ -83,7 +85,7 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => 
     });
 
     const unsubscribeClear = subscribeTerminalClear(() => {
-      term.clear();
+      term.reset();
       term.write('$ ');
     });
 
