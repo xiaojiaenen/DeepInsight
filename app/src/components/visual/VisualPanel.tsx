@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { VisualCanvas } from './VisualCanvas'
 import { LessonController } from '../../features/lesson/LessonController'
 import { MatrixControls } from './MatrixControls'
+import { createMockMatrixVideo } from '../../lib/mockVideo'
 
 export const VisualPanel: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -9,6 +10,7 @@ export const VisualPanel: React.FC = () => {
   const useVideo = useMemo(() => videoUrl != null, [videoUrl])
   const [lessonUrl, setLessonUrl] = useState('/lessons/demo-visual.json')
   const [lessonFileUrl, setLessonFileUrl] = useState<string | null>(null)
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
 
   useEffect(() => {
     return () => {
@@ -64,6 +66,28 @@ export const VisualPanel: React.FC = () => {
             }}
           />
         </label>
+        <button
+          className="text-xs text-slate-600 bg-white/90 backdrop-blur px-2 py-1 rounded border border-slate-200 disabled:opacity-50"
+          disabled={isGeneratingVideo}
+          onClick={async () => {
+            setIsGeneratingVideo(true)
+            try {
+              const blob = await createMockMatrixVideo({ durationMs: 9000 })
+              setVideoUrl((prev) => {
+                if (prev) URL.revokeObjectURL(prev)
+                const next = URL.createObjectURL(blob)
+                return next
+              })
+              setLessonUrl('/lessons/demo-matrix.json')
+            } catch (e) {
+              void e
+            } finally {
+              setIsGeneratingVideo(false)
+            }
+          }}
+        >
+          {isGeneratingVideo ? '生成中...' : '生成 Mock 视频'}
+        </button>
         <label className="text-xs text-slate-600 bg-white/90 backdrop-blur px-2 py-1 rounded border border-slate-200 cursor-pointer">
           选择视频
           <input

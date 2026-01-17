@@ -64,10 +64,11 @@
     - [x] 定义 `Lesson` JSON Schema（duration + events）。
     - [x] 开发 `TimelineController`：播放/暂停/拖动，触发交互事件。
 - [ ] **Demo 课程: 矩阵变换**
-    - [ ] 制作/Mock 一段 Manim 视频（矩阵乘法介绍）。
+    - [x] 制作/Mock 一段 Manim 视频（矩阵乘法介绍）。
     - [x] 开发 `MatrixVisualizer` 组件（3D 向量/网格）。
     - [x] 实现联动：Lesson 事件 / __VIS__ / UI 直接修改矩阵数值 -> 3D 箭头实时变化。
     - [x] 添加矩阵控制面板（滑杆/预设），快速编辑矩阵参数。
+    - [x] 内置 Mock 视频生成器（浏览器录制 WebM），用于无外部资源演示。
 
 ---
 
