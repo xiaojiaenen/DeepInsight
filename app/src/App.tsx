@@ -1,46 +1,46 @@
-import { useEffect, useState } from 'react'
 import { MainLayout } from './components/layout/MainLayout'
 import { useKernel } from './features/kernel/useKernel'
 import { WorkspacePage } from './pages/WorkspacePage'
-import { AnimationLibraryPage } from './pages/AnimationLibraryPage'
+import { getProjectState } from './features/files/filesStore'
+import { getWorkspaceState } from './features/workspace/workspaceStore'
+import { terminalWriteLine } from './lib/terminalBus'
 
 function App() {
-  const [activePage, setActivePage] = useState<'workspace' | 'library'>('workspace')
-  const [code, setCode] = useState(
-    '# 在此编写 Python 代码\n# 指标（MLOps 风格）：print(\'__METRIC__ : {"name":"loss","value":0.42,"step":1}\')\n\nimport numpy as np\n\nprint("你好，DeepInsight")\n',
-  )
-  const { pythonBadge, isRunning, run, stop } = useKernel()
+  const { pythonBadge, isRunning, runProject, runWorkspace, stop } = useKernel()
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('deepinsight:activePage')
-      if (raw === 'library' || raw === 'workspace') setActivePage(raw)
-    } catch (e) {
-      void e
+  const runFile = (path: string) => {
+    const ws = getWorkspaceState()
+    if (typeof window.workspace !== 'undefined' && ws.root) {
+      runWorkspace(ws.root, path)
+      return
     }
-  }, [])
+    const s = getProjectState()
+    const files = s.files.map((f) => ({ path: f.path, content: f.content }))
+    runProject(files, path)
+  }
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('deepinsight:activePage', activePage)
-    } catch (e) {
-      void e
+  const runActive = () => {
+    const ws = getWorkspaceState()
+    if (typeof window.workspace !== 'undefined' && ws.root) {
+      const p = ws.activePath
+      if (p && p.endsWith('.py')) runWorkspace(ws.root, p)
+      else terminalWriteLine('请选择一个 .py 文件后再运行（可在文件树右键运行）。')
+      return
     }
-  }, [activePage])
+    const s = getProjectState()
+    const active = s.files.find((x) => x.id === s.activeFileId) ?? s.files[0]
+    const entry = (active?.path ?? 'main.py').toString()
+    const files = s.files.map((f) => ({ path: f.path, content: f.content }))
+    runProject(files, entry)
+  }
 
   return (
     <MainLayout
       isRunning={isRunning}
-      onRun={() => run(code)}
+      onRun={runActive}
       onStop={stop}
-      activePage={activePage}
-      onNavigate={setActivePage}
     >
-      {activePage === 'library' ? (
-        <AnimationLibraryPage />
-      ) : (
-        <WorkspacePage code={code} onChangeCode={setCode} pythonBadge={pythonBadge} />
-      )}
+      <WorkspacePage pythonBadge={pythonBadge} onRun={runActive} onRunFile={runFile} onStop={stop} isRunning={isRunning} />
     </MainLayout>
   )
 }

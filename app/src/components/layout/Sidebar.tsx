@@ -1,13 +1,8 @@
 import React from 'react'
-import { BookOpen, Code, Hexagon, Settings } from 'lucide-react'
+import { Code, Hexagon, Settings } from 'lucide-react'
 import { cn } from './cn'
 
-export type SidebarPage = 'workspace' | 'library'
-
-export const Sidebar: React.FC<{ activePage: SidebarPage; onNavigate?: (page: SidebarPage) => void }> = ({
-  activePage,
-  onNavigate,
-}) => {
+export const Sidebar: React.FC = () => {
   const dragStyle: (React.CSSProperties & { WebkitAppRegion: 'drag' }) = { WebkitAppRegion: 'drag' }
   const noDragStyle: (React.CSSProperties & { WebkitAppRegion: 'no-drag' }) = { WebkitAppRegion: 'no-drag' }
 
@@ -27,13 +22,7 @@ export const Sidebar: React.FC<{ activePage: SidebarPage; onNavigate?: (page: Si
       </div>
 
       <nav className="flex-1 px-3 py-3 flex flex-col gap-1" style={noDragStyle}>
-        <NavItem icon={<Code className="w-4 h-4" />} label="工作台" active={activePage === 'workspace'} onClick={() => onNavigate?.('workspace')} />
-        <NavItem
-          icon={<BookOpen className="w-4 h-4" />}
-          label="动画库"
-          active={activePage === 'library'}
-          onClick={() => onNavigate?.('library')}
-        />
+        <NavItem icon={<Code className="w-4 h-4" />} label="工作台" active />
         <div className="flex-1" />
         <NavItem icon={<Settings className="w-4 h-4" />} label="设置" />
       </nav>
@@ -45,19 +34,16 @@ const NavItem = ({
   icon,
   active,
   label,
-  onClick,
 }: {
   icon: React.ReactNode
   active?: boolean
   label: string
-  onClick?: () => void
 }) => (
   <button
     className={cn(
       'w-full h-10 px-3 rounded-lg flex items-center gap-3 text-sm transition-colors',
       active ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-100' : 'text-slate-600 hover:bg-white hover:text-slate-900',
     )}
-    onClick={onClick}
   >
     <span className="text-slate-500">{icon}</span>
     <span className="font-medium">{label}</span>

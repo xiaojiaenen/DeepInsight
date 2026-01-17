@@ -1,8 +1,9 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { Menu, app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import fs from 'node:fs'
 import net from 'node:net'
 import path from 'node:path'
+import { promises as fsp } from 'node:fs'
 
 const DIST = path.join(__dirname, '../dist')
 
@@ -115,6 +116,29 @@ function createWindow() {
   }
 }
 
+function installAppMenu() {
+  const template: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'pasteAndMatchStyle' },
+        { role: 'selectAll' },
+      ],
+    },
+    {
+      label: 'View',
+      submenu: [{ role: 'reload' }, { role: 'forceReload' }, { role: 'toggleDevTools' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' }],
+    },
+  ]
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+}
+
 ipcMain.handle('window:minimize', (event) => {
   const w = BrowserWindow.fromWebContents(event.sender)
   w?.minimize()
@@ -137,6 +161,212 @@ ipcMain.handle('window:isMaximized', (event) => {
   return w?.isMaximized() ?? false
 })
 
+type WorkspaceEntry = { name: string; path: string; kind: 'file' | 'dir' }
+
+function resolveInsideRoot(root: string, rel: string) {
+  const rootAbs = path.resolve(root)
+  const targetAbs = path.resolve(rootAbs, rel)
+  const rootWithSep = rootAbs.endsWith(path.sep) ? rootAbs : rootAbs + path.sep
+  if (targetAbs !== rootAbs && !targetAbs.startsWith(rootWithSep)) {
+    throw new Error('Path is outside workspace')
+  }
+  return targetAbs
+}
+
+const IGNORED_DIRS = new Set(['.git', 'node_modules', '.venv', '__pycache__', 'dist', 'build'])
+let workspaceInstallRunning = false
+
+function emitWorkspaceInstallStatus(status: 'idle' | 'running' | 'done' | 'error', message?: string) {
+  if (!win) return
+  win.webContents.send('workspace:installStatus', { status, message })
+}
+
+function emitWorkspaceInstallLog(line: string) {
+  if (!win) return
+  win.webContents.send('workspace:installLog', line)
+}
+
+async function fileExists(p: string) {
+  try {
+    await fsp.stat(p)
+    return true
+  } catch {
+    return false
+  }
+}
+
+ipcMain.handle('workspace:detectPythonEnv', async (_event, payload: { root: string }) => {
+  const root = String(payload?.root ?? '')
+  const rootAbs = path.resolve(root)
+  const pyproject = path.join(rootAbs, 'pyproject.toml')
+  const requirements = path.join(rootAbs, 'requirements.txt')
+  const hasPyproject = await fileExists(pyproject)
+  const hasRequirements = await fileExists(requirements)
+  const hasVenv = await fileExists(path.join(rootAbs, '.venv'))
+  const installer: 'uv-sync' | 'uv-pip' | 'none' = hasPyproject ? 'uv-sync' : hasRequirements ? 'uv-pip' : 'none'
+  return { hasPyproject, hasRequirements, hasVenv, installer }
+})
+
+function spawnWithLog(cmd: string, args: string[], cwd: string) {
+  const p = spawn(cmd, args, { cwd, windowsHide: true })
+  p.stdout.on('data', (d) => {
+    for (const line of String(d).split(/\r?\n/)) {
+      if (line.trim().length) emitWorkspaceInstallLog(line)
+    }
+  })
+  p.stderr.on('data', (d) => {
+    for (const line of String(d).split(/\r?\n/)) {
+      if (line.trim().length) emitWorkspaceInstallLog(line)
+    }
+  })
+  return p
+}
+
+async function runWorkspaceInstall(rootAbs: string) {
+  const hasPyproject = await fileExists(path.join(rootAbs, 'pyproject.toml'))
+  const hasRequirements = await fileExists(path.join(rootAbs, 'requirements.txt'))
+
+  if (!hasPyproject && !hasRequirements) {
+    throw new Error('未检测到 pyproject.toml 或 requirements.txt')
+  }
+
+  emitWorkspaceInstallLog(`workspace: ${rootAbs}`)
+  emitWorkspaceInstallLog('开始安装依赖（uv）...')
+
+  if (!(await fileExists(path.join(rootAbs, '.venv')))) {
+    emitWorkspaceInstallLog('创建虚拟环境：uv venv')
+    await new Promise<void>((resolve, reject) => {
+      const p = spawnWithLog('uv', ['venv'], rootAbs)
+      p.on('error', reject)
+      p.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`uv venv exited with code ${code}`))))
+    })
+  }
+
+  if (hasPyproject) {
+    emitWorkspaceInstallLog('同步依赖：uv sync')
+    await new Promise<void>((resolve, reject) => {
+      const p = spawnWithLog('uv', ['sync'], rootAbs)
+      p.on('error', reject)
+      p.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`uv sync exited with code ${code}`))))
+    })
+    return
+  }
+
+  emitWorkspaceInstallLog('安装依赖：uv pip install -r requirements.txt')
+  await new Promise<void>((resolve, reject) => {
+    const p = spawnWithLog('uv', ['pip', 'install', '-r', 'requirements.txt'], rootAbs)
+    p.on('error', reject)
+    p.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`uv pip install exited with code ${code}`))))
+  })
+}
+
+ipcMain.handle('workspace:installPythonDeps', async (_event, payload: { root: string }) => {
+  const root = String(payload?.root ?? '')
+  const rootAbs = path.resolve(root)
+  if (workspaceInstallRunning) {
+    emitWorkspaceInstallStatus('error', '已有安装任务在运行')
+    return false
+  }
+  emitWorkspaceInstallStatus('running')
+  workspaceInstallRunning = true
+  try {
+    await runWorkspaceInstall(rootAbs)
+    emitWorkspaceInstallStatus('done')
+    return true
+  } catch (e) {
+    emitWorkspaceInstallStatus('error', e instanceof Error ? e.message : String(e))
+    return false
+  } finally {
+    workspaceInstallRunning = false
+  }
+})
+
+ipcMain.handle('workspace:openFolder', async () => {
+  const res = await dialog.showOpenDialog({
+    properties: ['openDirectory', 'createDirectory'],
+  })
+  if (res.canceled) return null
+  const root = res.filePaths[0]
+  if (!root) return null
+  return { root }
+})
+
+ipcMain.handle('workspace:list', async (_event, payload: { root: string; dir: string }) => {
+  const root = String(payload?.root ?? '')
+  const dir = String(payload?.dir ?? '')
+  const abs = resolveInsideRoot(root, dir || '.')
+  const entries = await fsp.readdir(abs, { withFileTypes: true })
+  const out: WorkspaceEntry[] = []
+  for (const e of entries) {
+    if (e.name.startsWith('.')) {
+      if (IGNORED_DIRS.has(e.name)) continue
+    }
+    const kind: 'file' | 'dir' = e.isDirectory() ? 'dir' : 'file'
+    const p = dir ? path.posix.join(dir.replace(/\\/g, '/'), e.name) : e.name
+    out.push({ name: e.name, path: p, kind })
+  }
+  out.sort((a, b) => {
+    if (a.kind !== b.kind) return a.kind === 'dir' ? -1 : 1
+    return a.name.localeCompare(b.name)
+  })
+  return out
+})
+
+ipcMain.handle('workspace:readFile', async (_event, payload: { root: string; path: string }) => {
+  const root = String(payload?.root ?? '')
+  const rel = String(payload?.path ?? '')
+  const abs = resolveInsideRoot(root, rel)
+  return await fsp.readFile(abs, 'utf-8')
+})
+
+ipcMain.handle('workspace:writeFile', async (_event, payload: { root: string; path: string; content: string }) => {
+  const root = String(payload?.root ?? '')
+  const rel = String(payload?.path ?? '')
+  const content = String(payload?.content ?? '')
+  const abs = resolveInsideRoot(root, rel)
+  await fsp.mkdir(path.dirname(abs), { recursive: true })
+  await fsp.writeFile(abs, content, 'utf-8')
+  return true
+})
+
+ipcMain.handle('workspace:createFile', async (_event, payload: { root: string; path: string }) => {
+  const root = String(payload?.root ?? '')
+  const rel = String(payload?.path ?? '')
+  const abs = resolveInsideRoot(root, rel)
+  await fsp.mkdir(path.dirname(abs), { recursive: true })
+  await fsp.writeFile(abs, '', { encoding: 'utf-8', flag: 'wx' }).catch(async () => {
+    await fsp.writeFile(abs, '', { encoding: 'utf-8' })
+  })
+  return true
+})
+
+ipcMain.handle('workspace:mkdir', async (_event, payload: { root: string; path: string }) => {
+  const root = String(payload?.root ?? '')
+  const rel = String(payload?.path ?? '')
+  const abs = resolveInsideRoot(root, rel)
+  await fsp.mkdir(abs, { recursive: true })
+  return true
+})
+
+ipcMain.handle('workspace:rename', async (_event, payload: { root: string; from: string; to: string }) => {
+  const root = String(payload?.root ?? '')
+  const from = String(payload?.from ?? '')
+  const to = String(payload?.to ?? '')
+  const absFrom = resolveInsideRoot(root, from)
+  const absTo = resolveInsideRoot(root, to)
+  await fsp.mkdir(path.dirname(absTo), { recursive: true })
+  await fsp.rename(absFrom, absTo)
+  return true
+})
+
+ipcMain.handle('workspace:delete', async (_event, payload: { root: string; path: string }) => {
+  const root = String(payload?.root ?? '')
+  const rel = String(payload?.path ?? '')
+  const abs = resolveInsideRoot(root, rel)
+  await fsp.rm(abs, { recursive: true, force: true })
+  return true
+})
+
 app.on('window-all-closed', () => {
   win = null
   stopKernel()
@@ -152,4 +382,5 @@ app.on('activate', () => {
 })
 
 app.whenReady().then(createWindow)
+app.whenReady().then(installAppMenu)
 app.whenReady().then(() => startKernel().catch(() => {}))

@@ -4,6 +4,26 @@ export type KernelMessage =
   | { type: 'stdout'; data: string; run_id: string }
   | { type: 'stderr'; data: string; run_id: string }
   | { type: 'metric'; run_id: string; name: string; value: number; step: number }
+  | {
+      type: 'hw'
+      ts_ms: number
+      gpus: Array<{
+        index: number
+        name: string
+        utilization_gpu: number
+        memory_used_mb: number
+        memory_total_mb: number
+        temperature_c: number
+      }>
+      error?: string | null
+    }
+  | {
+      type: 'oom'
+      run_id?: string | null
+      message: string
+      likely_location?: string | null
+      suggestions?: string[]
+    }
   | { type: 'done'; run_id: string; exit_code: number | null; timed_out: boolean; cancelled: boolean }
   | { type: 'error'; message: string; run_id?: string | null }
 
@@ -12,6 +32,9 @@ type KernelClientOptions = {
   onMessage: (msg: KernelMessage) => void
   onStatus?: (status: 'connecting' | 'open' | 'closed' | 'error') => void
 }
+
+export type KernelProjectFile = { path: string; content: string }
+export type KernelWorkspaceExec = { workspace_root: string; entry: string; timeout_s?: number }
 
 export class KernelClient {
   private ws: WebSocket | null = null
@@ -68,6 +91,14 @@ export class KernelClient {
 
   exec(code: string, timeout_s = 30) {
     this.send({ type: 'exec', code, timeout_s })
+  }
+
+  execProject(files: KernelProjectFile[], entry: string, timeout_s = 30) {
+    this.send({ type: 'exec', files, entry, timeout_s })
+  }
+
+  execWorkspace(workspace_root: string, entry: string, timeout_s = 30) {
+    this.send({ type: 'exec', workspace_root, entry, timeout_s })
   }
 
   cancel(run_id: string) {

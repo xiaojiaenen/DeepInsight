@@ -4,7 +4,7 @@ import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import 'monaco-editor/esm/vs/editor/editor.all';
 import 'monaco-editor/esm/vs/basic-languages/python/python.contribution';
 import type { OnMount } from '@monaco-editor/react';
-import { subscribeEditorInsertText } from '../../lib/editorBus';
+import { subscribeEditorInsertText, subscribeEditorRevealPosition } from '../../lib/editorBus';
 
 loader.config({ monaco });
 
@@ -19,6 +19,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   language = "python",
   onChange 
 }) => {
+  const noDragStyle: (React.CSSProperties & { WebkitAppRegion: 'no-drag' }) = { WebkitAppRegion: 'no-drag' }
   
   type MonacoSelection = {
     selectionStartLineNumber: number
@@ -121,8 +122,18 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     })
   }, [onChange, value])
 
+  useEffect(() => {
+    return subscribeEditorRevealPosition(({ lineNumber, column }) => {
+      const editor = editorRef.current
+      if (!editor) return
+      const pos = { lineNumber, column: column ?? 1 }
+      editor.setPosition(pos)
+      editor.revealPositionInCenter(pos)
+    })
+  }, [])
+
   return (
-    <div className="w-full h-full relative border-l border-slate-200">
+    <div className="w-full h-full relative border-l border-slate-200" style={noDragStyle}>
       <Editor
         height="100%"
         defaultLanguage={language}

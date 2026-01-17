@@ -34,13 +34,36 @@ class WsMetric(TypedDict):
     step: int
 
 
+class WsHwGpu(TypedDict):
+    index: int
+    name: str
+    utilization_gpu: int
+    memory_used_mb: int
+    memory_total_mb: int
+    temperature_c: int
+
+
+class WsHw(TypedDict, total=False):
+    type: Literal["hw"]
+    ts_ms: int
+    gpus: list[WsHwGpu]
+    error: Optional[str]
+
+
+class WsOom(TypedDict, total=False):
+    type: Literal["oom"]
+    run_id: Optional[str]
+    message: str
+    likely_location: Optional[str]
+    suggestions: list[str]
+
+
 
 class WsDone(TypedDict):
     type: Literal["done"]
     run_id: str
     exit_code: Optional[int]
     timed_out: bool
-    cancelled: bool
 
 
 class WsError(TypedDict):
@@ -49,13 +72,16 @@ class WsError(TypedDict):
     run_id: Optional[str]
 
 
-WsServerMessage = Union[WsHello, WsStart, WsStdout, WsStderr, WsMetric, WsDone, WsError]
+WsServerMessage = Union[WsHello, WsStart, WsStdout, WsStderr, WsMetric, WsHw, WsOom, WsDone, WsError]
 
 
 class WsExec(TypedDict, total=False):
     type: Literal["exec"]
     code: str
     timeout_s: float
+    entry: str
+    files: list[dict[str, Any]]
+    workspace_root: str
 
 
 class WsCancel(TypedDict, total=False):

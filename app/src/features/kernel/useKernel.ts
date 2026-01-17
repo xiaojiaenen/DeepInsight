@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
-import { KernelClient, type KernelMessage } from '../../lib/kernelClient'
+import { KernelClient, type KernelMessage, type KernelProjectFile } from '../../lib/kernelClient'
 import { terminalClear, terminalWrite, terminalWriteLine } from '../../lib/terminalBus'
 import { addMetric, finishRun, startRun } from '../runs/runsStore'
+import { setHwSnapshot } from '../hw/hwStore'
+import { setOomAnalysis } from '../oom/oomStore'
+import { clearTraceLocation, setTraceLocation } from '../trace/traceStore'
 
 type UseKernelResult = {
   pythonBadge: string
   isRunning: boolean
   run: (code: string) => void
+  runProject: (files: KernelProjectFile[], entry: string) => void
+  runWorkspace: (workspaceRoot: string, entry: string) => void
   stop: () => void
 }
 
@@ -52,12 +57,41 @@ export function useKernel(): UseKernelResult {
         }
         if (msg.type === 'stderr') {
           if (runIdRef.current && msg.run_id !== runIdRef.current) return
+          const m = msg.data.match(/File "([^"]+)", line (\d+)/)
+          if (m) {
+            const path = m[1] ?? ''
+            const lineStr = m[2] ?? '1'
+            const lineNumber = Number(lineStr)
+            if (path && Number.isFinite(lineNumber)) setTraceLocation({ path, lineNumber, ts_ms: Date.now() })
+          }
           terminalWrite(normalizeForTerminal(msg.data))
           return
         }
         if (msg.type === 'metric') {
           if (runIdRef.current && msg.run_id !== runIdRef.current) return
           addMetric(msg.run_id, { name: msg.name, value: msg.value, step: msg.step })
+          return
+        }
+        if (msg.type === 'hw') {
+          setHwSnapshot({ ts_ms: msg.ts_ms, gpus: msg.gpus, error: msg.error })
+          return
+        }
+        if (msg.type === 'oom') {
+          const suggestions = msg.suggestions ?? []
+          setOomAnalysis({
+            run_id: msg.run_id ?? null,
+            message: msg.message,
+            likely_location: msg.likely_location ?? null,
+            suggestions,
+            ts_ms: Date.now(),
+          })
+          terminalWriteLine('显存分析器：检测到 OOM（Out of Memory）。')
+          terminalWriteLine(`原因：${msg.message}`)
+          if (msg.likely_location) terminalWriteLine(`可能位置：${msg.likely_location}`)
+          if (suggestions.length) {
+            terminalWriteLine('建议：')
+            for (const s of suggestions.slice(0, 6)) terminalWriteLine(`- ${s}`)
+          }
           return
         }
         if (msg.type === 'done') {
@@ -88,10 +122,30 @@ export function useKernel(): UseKernelResult {
 
   const run = (code: string) => {
     terminalClear()
+    clearTraceLocation()
     terminalWriteLine('DeepInsight 运行器')
     terminalWriteLine('--------------------------------')
     lastCodeRef.current = code
     clientRef.current?.exec(code, DEFAULT_TIMEOUT_S)
+  }
+
+  const runProject = (files: KernelProjectFile[], entry: string) => {
+    terminalClear()
+    clearTraceLocation()
+    terminalWriteLine('DeepInsight 运行器')
+    terminalWriteLine('--------------------------------')
+    const entryFile = files.find((f) => f.path === entry)
+    lastCodeRef.current = entryFile?.content
+    clientRef.current?.execProject(files, entry, DEFAULT_TIMEOUT_S)
+  }
+
+  const runWorkspace = (workspaceRoot: string, entry: string) => {
+    terminalClear()
+    clearTraceLocation()
+    terminalWriteLine('DeepInsight 运行器')
+    terminalWriteLine('--------------------------------')
+    lastCodeRef.current = undefined
+    clientRef.current?.execWorkspace(workspaceRoot, entry, DEFAULT_TIMEOUT_S)
   }
 
   const stop = () => {
@@ -100,5 +154,5 @@ export function useKernel(): UseKernelResult {
     clientRef.current?.cancel(runId)
   }
 
-  return { pythonBadge, isRunning, run, stop }
+  return { pythonBadge, isRunning, run, runProject, runWorkspace, stop }
 }

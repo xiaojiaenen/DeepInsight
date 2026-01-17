@@ -1,23 +1,23 @@
 import React from 'react'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
+import { ContextMenuHost } from '../context/ContextMenuHost'
 
 type LayoutProps = {
   children: React.ReactNode
   isRunning?: boolean
   onRun?: () => void
   onStop?: () => void
-  activePage?: 'workspace' | 'library'
-  onNavigate?: (page: 'workspace' | 'library') => void
 }
 
-export const MainLayout: React.FC<LayoutProps> = ({ children, isRunning, onRun, onStop, activePage, onNavigate }) => {
+export const MainLayout: React.FC<LayoutProps> = ({ children, isRunning, onRun, onStop }) => {
   return (
     <div className="flex h-screen w-screen bg-background text-foreground overflow-hidden font-sans">
-      <Sidebar activePage={activePage ?? 'workspace'} onNavigate={onNavigate} />
+      <Sidebar />
       <main className="flex-1 min-w-0 flex flex-col relative bg-white">
         <TopBar isRunning={isRunning} onRun={onRun} onStop={onStop} />
         <div className="flex-1 min-h-0 relative">{children}</div>
+        <ContextMenuHost />
       </main>
     </div>
   )
