@@ -54,8 +54,9 @@
     - [x] 建立最小联动协议：stdout 输出 `__VIS__ : <JSON>`，由 Kernel 提取并发送 vis 消息联动。
     - [x] 支持基础动作：patch/tween/reset（平滑插值动画）。
 - [ ] **视频播放器开发**
-    - [ ] 封装 HTML5 Video 播放器，支持精确跳转。
-    - [ ] 实现“隐藏式”播放：视频层在下，Canvas 层在上（透明背景）。
+    - [x] 封装 HTML5 Video 播放器，支持精确跳转。
+    - [x] 实现“隐藏式”播放：视频层在下，Canvas 层在上（透明背景）。
+    - [x] 支持选择本地视频作为时间源，驱动课程事件。
 - [ ] **Lesson Protocol (课程协议) 实现**
     - [x] 定义 `Lesson` JSON Schema（duration + events）。
     - [x] 开发 `TimelineController`：播放/暂停/拖动，触发交互事件。

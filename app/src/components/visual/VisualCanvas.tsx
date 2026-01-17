@@ -157,6 +157,10 @@ export const VisualCanvas: React.FC = () => {
       className="w-full h-full"
       dpr={dpr}
       camera={{ position: [3, 3, 3], fov: 50 }}
+      gl={{ alpha: true, antialias: true }}
+      onCreated={({ gl }) => {
+        gl.setClearColor(0x000000, 0)
+      }}
     >
       <ambientLight intensity={0.6} />
       <directionalLight position={[5, 5, 5]} intensity={0.9} />

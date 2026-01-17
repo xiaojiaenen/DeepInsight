@@ -6,6 +6,8 @@ import { useLessonPlayer } from './useLessonPlayer'
 
 type LessonControllerProps = {
   url?: string
+  videoRef?: React.RefObject<HTMLVideoElement | null>
+  useVideo?: boolean
 }
 
 const formatMs = (ms: number) => {
@@ -15,7 +17,11 @@ const formatMs = (ms: number) => {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-export const LessonController: React.FC<LessonControllerProps> = ({ url = '/lessons/demo-visual.json' }) => {
+export const LessonController: React.FC<LessonControllerProps> = ({
+  url = '/lessons/demo-visual.json',
+  videoRef,
+  useVideo,
+}) => {
   const [lesson, setLesson] = useState<LessonDefinition | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -36,7 +42,7 @@ export const LessonController: React.FC<LessonControllerProps> = ({ url = '/less
     }
   }, [url])
 
-  const player = useLessonPlayer(lesson)
+  const player = useLessonPlayer(lesson, { videoRef, useVideo })
 
   return (
     <div className="absolute left-3 right-3 bottom-3 bg-white/90 backdrop-blur border border-slate-200 rounded-xl px-3 py-2">
@@ -79,4 +85,3 @@ export const LessonController: React.FC<LessonControllerProps> = ({ url = '/less
     </div>
   )
 }
-
