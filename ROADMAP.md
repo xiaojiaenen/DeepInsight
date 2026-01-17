@@ -49,27 +49,20 @@
 
 ---
 
-## 🎨 Phase 2: 混合渲染引擎 (Hybrid Rendering Engine)
-**目标**: 实现 Manim 视频与 WebGL 交互的无缝融合。
+## 🎨 Phase 2: 动画库 (Knowledge Animation Library)
+**目标**: 每一个视频对应一个知识点，用脚本/动画把知识讲明白（面向学习者的内容资产库）。
 
-- [ ] **Three.js 环境搭建**
-    - [x] 安装 `three`、`@react-three/fiber`, `@react-three/drei`。
-    - [x] 创建 `VisualCanvas` 组件。
-    - [x] 建立最小联动协议：stdout 输出 `__VIS__ : <JSON>`，由 Kernel 提取并发送 vis 消息联动。
-    - [x] 支持基础动作：patch/tween/reset（平滑插值动画）。
-- [ ] **视频播放器开发**
-    - [x] 封装 HTML5 Video 播放器，支持精确跳转。
-    - [x] 实现“隐藏式”播放：视频层在下，Canvas 层在上（透明背景）。
-    - [x] 支持选择本地视频作为时间源，驱动课程事件。
-- [ ] **Lesson Protocol (课程协议) 实现**
-    - [x] 定义 `Lesson` JSON Schema（duration + events）。
-    - [x] 开发 `TimelineController`：播放/暂停/拖动，触发交互事件。
-- [ ] **Demo 课程: 矩阵变换**
-    - [x] 制作/Mock 一段 Manim 视频（矩阵乘法介绍）。
-    - [x] 开发 `MatrixVisualizer` 组件（3D 向量/网格）。
-    - [x] 实现联动：Lesson 事件 / __VIS__ / UI 直接修改矩阵数值 -> 3D 箭头实时变化。
-    - [x] 添加矩阵控制面板（滑杆/预设），快速编辑矩阵参数。
-    - [x] 内置 Mock 视频生成器（浏览器录制 WebM），用于无外部资源演示。
+- [x] **动画库页面**
+    - [x] 新增“动画库”页面与 Sidebar 导航。
+    - [x] 支持导入知识点脚本（JSON）并本地持久化。
+- [x] **脚本驱动讲解**
+    - [x] 播放器根据视频时间轴展示当前讲解段落（title/body）。
+- [ ] **内容资产管理**
+    - [ ] 支持知识点分组/标签/搜索。
+    - [ ] 支持为知识点绑定本地视频并记忆选择（需要文件持久化方案）。
+- [ ] **动画组件库**
+    - [ ] 提供常用教学动画组件（坐标系/函数曲线/回归线/矩阵乘法等）。
+    - [ ] 定义统一的 Animation Script Schema（可版本化）。
 
 ---
 
@@ -112,7 +105,7 @@
     - [ ] 配置 `electron-builder` 打包 Windows/Mac 安装包。
     - [ ] 包含 Python 运行时和依赖的打包策略（或首次启动下载）。
 - [ ] **性能优化**
-    - [ ] Three.js 渲染性能调优。
+    - [ ] 视频播放与资源管理性能优化（解码/内存/缓存）。
     - [ ] 大模型推理内存占用优化。
 - [ ] **文档与社区**
     - [ ] 编写用户手册。

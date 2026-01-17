@@ -3,7 +3,6 @@ export type KernelMessage =
   | { type: 'start'; run_id: string }
   | { type: 'stdout'; data: string; run_id: string }
   | { type: 'stderr'; data: string; run_id: string }
-  | { type: 'vis'; run_id: string; patch: unknown }
   | { type: 'metric'; run_id: string; name: string; value: number; step: number }
   | { type: 'done'; run_id: string; exit_code: number | null; timed_out: boolean; cancelled: boolean }
   | { type: 'error'; message: string; run_id?: string | null }

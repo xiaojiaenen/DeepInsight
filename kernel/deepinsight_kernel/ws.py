@@ -16,23 +16,6 @@ from .security import check_code_safety
 async def _ws_send(websocket: WebSocket, payload: WsServerMessage) -> None:
     await websocket.send_text(json.dumps(payload, ensure_ascii=False))
 
-def _parse_vis_line(line: str) -> Optional[dict]:
-    trimmed = line.strip()
-    if not trimmed.startswith("__VIS__"):
-        return None
-    raw = trimmed[len("__VIS__") :].strip()
-    if raw.startswith(":"):
-        raw = raw[1:].strip()
-    if not raw:
-        return None
-    try:
-        obj = json.loads(raw)
-    except Exception:
-        return None
-    if isinstance(obj, dict):
-        return obj
-    return None
-
 def _parse_metric_line(line: str) -> Optional[tuple[str, float, int]]:
     trimmed = line.strip()
     if not trimmed.startswith("__METRIC__"):
@@ -132,10 +115,6 @@ async def handle_ws(websocket: WebSocket) -> None:
                 await _ws_send(websocket, {"type": "start", "run_id": run_id})
 
                 async def on_stdout(line: str) -> None:
-                    patch = _parse_vis_line(line)
-                    if patch is not None:
-                        await _ws_send(websocket, {"type": "vis", "run_id": run_id, "patch": patch})
-                        return
                     metric = _parse_metric_line(line)
                     if metric is not None:
                         name, value, step = metric

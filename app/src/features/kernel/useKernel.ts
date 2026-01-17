@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { KernelClient, type KernelMessage } from '../../lib/kernelClient'
 import { terminalClear, terminalWrite, terminalWriteLine } from '../../lib/terminalBus'
-import { coerceVisualAction } from '../visualization/coerceVisualAction'
-import { publishVisualAction } from '../visualization/visualBus'
 import { addMetric, finishRun, startRun } from '../runs/runsStore'
 
 type UseKernelResult = {
@@ -55,12 +53,6 @@ export function useKernel(): UseKernelResult {
         if (msg.type === 'stderr') {
           if (runIdRef.current && msg.run_id !== runIdRef.current) return
           terminalWrite(normalizeForTerminal(msg.data))
-          return
-        }
-        if (msg.type === 'vis') {
-          if (runIdRef.current && msg.run_id !== runIdRef.current) return
-          const action = coerceVisualAction(msg.patch)
-          if (action) publishVisualAction(action)
           return
         }
         if (msg.type === 'metric') {

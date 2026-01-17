@@ -7,12 +7,14 @@ type LayoutProps = {
   isRunning?: boolean
   onRun?: () => void
   onStop?: () => void
+  activePage?: 'workspace' | 'library'
+  onNavigate?: (page: 'workspace' | 'library') => void
 }
 
-export const MainLayout: React.FC<LayoutProps> = ({ children, isRunning, onRun, onStop }) => {
+export const MainLayout: React.FC<LayoutProps> = ({ children, isRunning, onRun, onStop, activePage, onNavigate }) => {
   return (
     <div className="flex h-screen w-screen bg-background text-foreground overflow-hidden font-sans">
-      <Sidebar />
+      <Sidebar activePage={activePage ?? 'workspace'} onNavigate={onNavigate} />
       <main className="flex-1 min-w-0 flex flex-col relative bg-white">
         <TopBar isRunning={isRunning} onRun={onRun} onStop={onStop} />
         <div className="flex-1 min-h-0 relative">{children}</div>
