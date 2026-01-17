@@ -51,7 +51,7 @@
 - [ ] **Three.js 环境搭建**
     - [x] 安装 `three`、`@react-three/fiber`, `@react-three/drei`。
     - [x] 创建 `VisualCanvas` 组件。
-    - [x] 建立最小联动协议：stdout 输出 `__VIS__ : <JSON>` 驱动画布状态。
+    - [x] 建立最小联动协议：stdout 输出 `__VIS__ : <JSON>`，由 Kernel 提取并发送 vis 消息联动。
 - [ ] **视频播放器开发**
     - [ ] 封装 HTML5 Video 播放器，支持精确跳转。
     - [ ] 实现“隐藏式”播放：视频层在下，Canvas 层在上（透明背景）。

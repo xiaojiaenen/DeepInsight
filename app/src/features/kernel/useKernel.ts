@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { KernelClient, type KernelMessage } from '../../lib/kernelClient'
 import { terminalClear, terminalWrite, terminalWriteLine } from '../../lib/terminalBus'
-import { parseVisualMessage } from '../visualization/parseVisualMessage'
 import { publishVisualPatch } from '../visualization/visualBus'
+import type { VisualState } from '../visualization/visualTypes'
 
 type UseKernelResult = {
   pythonBadge: string
@@ -21,13 +21,6 @@ export function useKernel(): UseKernelResult {
 
   useEffect(() => {
     const normalizeForTerminal = (s: string) => s.replace(/\r?\n/g, '\r\n')
-    const maybePublishVisual = (chunk: string) => {
-      const lines = chunk.split(/\r?\n/)
-      for (const line of lines) {
-        const patch = parseVisualMessage(line)
-        if (patch) publishVisualPatch(patch)
-      }
-    }
 
     const client = new KernelClient({
       onStatus: (s) => {
@@ -53,13 +46,17 @@ export function useKernel(): UseKernelResult {
         }
         if (msg.type === 'stdout') {
           if (runIdRef.current && msg.run_id !== runIdRef.current) return
-          maybePublishVisual(msg.data)
           terminalWrite(normalizeForTerminal(msg.data))
           return
         }
         if (msg.type === 'stderr') {
           if (runIdRef.current && msg.run_id !== runIdRef.current) return
           terminalWrite(normalizeForTerminal(msg.data))
+          return
+        }
+        if (msg.type === 'vis') {
+          if (runIdRef.current && msg.run_id !== runIdRef.current) return
+          if (msg.patch && typeof msg.patch === 'object') publishVisualPatch(msg.patch as Partial<VisualState>)
           return
         }
         if (msg.type === 'done') {

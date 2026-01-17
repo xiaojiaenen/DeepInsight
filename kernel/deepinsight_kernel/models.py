@@ -26,6 +26,12 @@ class WsStderr(TypedDict):
     run_id: str
 
 
+class WsVis(TypedDict):
+    type: Literal["vis"]
+    run_id: str
+    patch: dict[str, Any]
+
+
 class WsDone(TypedDict):
     type: Literal["done"]
     run_id: str
@@ -40,7 +46,7 @@ class WsError(TypedDict):
     run_id: Optional[str]
 
 
-WsServerMessage = Union[WsHello, WsStart, WsStdout, WsStderr, WsDone, WsError]
+WsServerMessage = Union[WsHello, WsStart, WsStdout, WsStderr, WsVis, WsDone, WsError]
 
 
 class WsExec(TypedDict, total=False):
