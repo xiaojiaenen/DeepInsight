@@ -37,7 +37,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children, onRun }) => {
         </nav>
       </aside>
 
-      <main className="flex-1 flex flex-col relative bg-white">
+      <main className="flex-1 min-w-0 flex flex-col relative bg-white">
         <div className="h-12 border-b border-slate-100 flex items-center px-3 bg-white" style={{ WebkitAppRegion: 'drag' } as any}>
           <div className="flex items-center gap-2 text-sm text-slate-600">
             <span className="font-medium text-slate-900">未命名项目</span>
@@ -57,7 +57,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children, onRun }) => {
           </div>
         </div>
 
-        <div className="flex-1 relative">
+        <div className="flex-1 min-h-0 relative">
           {children}
         </div>
       </main>

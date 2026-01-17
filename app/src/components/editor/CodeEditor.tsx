@@ -41,6 +41,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         onMount={handleEditorDidMount}
         options={{
           minimap: { enabled: false },
+          automaticLayout: true,
           fontSize: 14,
           fontFamily: "'JetBrains Mono', monospace",
           cursorBlinking: 'smooth',

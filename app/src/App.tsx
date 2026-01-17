@@ -73,11 +73,11 @@ function App() {
 
   return (
     <MainLayout onRun={handleRun}>
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full min-h-0">
         {/* Top: Visualization & Editor Split */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
           {/* Left: Visualization (Placeholder for now) */}
-          <div className="w-1/2 bg-slate-50 flex items-center justify-center relative border-r border-slate-200">
+          <div className="flex-1 min-w-0 bg-slate-50 flex items-center justify-center relative border-b lg:border-b-0 lg:border-r border-slate-200">
              <div className="text-slate-400 font-mono tracking-widest bg-white px-4 py-2 rounded shadow-sm border border-slate-100">
                [可视化模块离线]
              </div>
@@ -86,13 +86,13 @@ function App() {
           </div>
 
           {/* Right: Code Editor */}
-          <div className="w-1/2 bg-white">
+          <div className="flex-1 min-w-0 bg-white">
             <CodeEditor value={code} onChange={setCode} />
           </div>
         </div>
 
         {/* Bottom: Terminal */}
-        <div className="h-48">
+        <div className="h-[220px] shrink-0">
           <TerminalPanel pythonBadge={pythonBadge} />
         </div>
       </div>

@@ -26,6 +26,13 @@
     --radius: 0.5rem;
   }
 
+  html,
+  body,
+  #root {
+    height: 100%;
+    width: 100%;
+  }
+
   body {
     @apply bg-background text-foreground antialiased font-sans overflow-hidden;
   }
