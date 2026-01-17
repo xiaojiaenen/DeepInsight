@@ -1,14 +1,22 @@
 import React from 'react'
-import { Play } from 'lucide-react'
+import { Play, Square } from 'lucide-react'
 import { WindowControls } from '../window/WindowControls'
 
 type TopBarProps = {
+  isRunning?: boolean
   onRun?: () => void
+  onStop?: () => void
   title?: string
   subtitle?: string
 }
 
-export const TopBar: React.FC<TopBarProps> = ({ onRun, title = '未命名项目', subtitle = '本地运行' }) => {
+export const TopBar: React.FC<TopBarProps> = ({
+  isRunning,
+  onRun,
+  onStop,
+  title = '未命名项目',
+  subtitle = '本地运行',
+}) => {
   const dragStyle: (React.CSSProperties & { WebkitAppRegion: 'drag' }) = { WebkitAppRegion: 'drag' }
   const noDragStyle: (React.CSSProperties & { WebkitAppRegion: 'no-drag' }) = { WebkitAppRegion: 'no-drag' }
 
@@ -24,13 +32,23 @@ export const TopBar: React.FC<TopBarProps> = ({ onRun, title = '未命名项目'
       </div>
 
       <div className="ml-auto flex items-center gap-2" style={noDragStyle}>
-        <button
-          className="h-9 px-4 rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors text-sm font-medium flex items-center justify-center gap-2"
-          onClick={() => onRun?.()}
-        >
-          <Play className="w-4 h-4 fill-white" />
-          运行
-        </button>
+        {isRunning ? (
+          <button
+            className="h-9 px-4 rounded-lg bg-red-600 text-white hover:bg-red-500 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+            onClick={() => onStop?.()}
+          >
+            <Square className="w-4 h-4 fill-white" />
+            停止
+          </button>
+        ) : (
+          <button
+            className="h-9 px-4 rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+            onClick={() => onRun?.()}
+          >
+            <Play className="w-4 h-4 fill-white" />
+            运行
+          </button>
+        )}
         <WindowControls />
       </div>
     </div>

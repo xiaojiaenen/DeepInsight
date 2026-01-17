@@ -7,13 +7,13 @@ function App() {
   const [code, setCode] = useState(
     "# 在此编写 Python 代码\nimport numpy as np\n\nprint('你好，DeepInsight')\n",
   )
-  const { pythonBadge, run } = useKernel()
+  const { pythonBadge, isRunning, run, stop } = useKernel()
 
   return (
-    <MainLayout onRun={() => run(code)}>
+    <MainLayout isRunning={isRunning} onRun={() => run(code)} onStop={stop}>
       <WorkspacePage code={code} onChangeCode={setCode} pythonBadge={pythonBadge} />
     </MainLayout>
   )
 }
 
-export default App;
+export default App

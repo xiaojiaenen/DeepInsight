@@ -22,7 +22,8 @@ async def execute_python(
     timeout_s: float,
     on_stdout: Callable[[str], Awaitable[None]],
     on_stderr: Callable[[str], Awaitable[None]],
-) -> tuple[Optional[int], bool]:
+    cancel_event: asyncio.Event | None = None,
+) -> tuple[Optional[int], bool, bool]:
     env = dict(os.environ)
     env["PYTHONUTF8"] = "1"
     env["PYTHONIOENCODING"] = "utf-8"
@@ -46,8 +47,30 @@ async def execute_python(
         tasks.append(asyncio.create_task(_read_stream_lines(proc.stderr, on_stderr)))
 
     timed_out = False
+    cancelled = False
     try:
-        await asyncio.wait_for(proc.wait(), timeout=timeout_s)
+        cancel_waiter = cancel_event.wait() if cancel_event is not None else None
+        proc_waiter = proc.wait()
+
+        waiters = [asyncio.create_task(proc_waiter)]
+        if cancel_waiter is not None:
+            waiters.append(asyncio.create_task(cancel_waiter))
+
+        done, pending = await asyncio.wait(waiters, timeout=timeout_s, return_when=asyncio.FIRST_COMPLETED)
+        for p in pending:
+            p.cancel()
+
+        if not done:
+            raise asyncio.TimeoutError
+
+        if cancel_event is not None and cancel_event.is_set() and proc.returncode is None:
+            cancelled = True
+            proc.terminate()
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=3)
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
     except asyncio.TimeoutError:
         timed_out = True
         proc.terminate()
@@ -60,5 +83,4 @@ async def execute_python(
     if tasks:
         await asyncio.gather(*tasks, return_exceptions=True)
 
-    return proc.returncode, timed_out
-
+    return proc.returncode, timed_out, cancelled

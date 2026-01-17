@@ -19,8 +19,16 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   onChange 
 }) => {
   
+  type MonacoEditorApi = {
+    editor: {
+      defineTheme: (...args: unknown[]) => unknown
+      setTheme: (...args: unknown[]) => unknown
+    }
+  }
+
   const handleEditorDidMount: OnMount = (_editor, monacoInstance) => {
-    monacoInstance.editor.defineTheme('clean-light', {
+    const m = monacoInstance as MonacoEditorApi
+    m.editor.defineTheme('clean-light', {
       base: 'vs',
       inherit: true,
       rules: [],
@@ -29,7 +37,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         'editor.lineHighlightBackground': '#f1f5f9',
       }
     });
-    monacoInstance.editor.setTheme('clean-light');
+    m.editor.setTheme('clean-light');
   };
 
   return (

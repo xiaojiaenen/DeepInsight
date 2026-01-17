@@ -1,10 +1,10 @@
 export type KernelMessage =
   | { type: 'hello'; python?: string; executable?: string }
-  | { type: 'start' }
-  | { type: 'stdout'; data: string }
-  | { type: 'stderr'; data: string }
-  | { type: 'done'; exit_code: number | null; timed_out: boolean }
-  | { type: 'error'; message: string }
+  | { type: 'start'; run_id: string }
+  | { type: 'stdout'; data: string; run_id: string }
+  | { type: 'stderr'; data: string; run_id: string }
+  | { type: 'done'; run_id: string; exit_code: number | null; timed_out: boolean; cancelled: boolean }
+  | { type: 'error'; message: string; run_id?: string | null }
 
 type KernelClientOptions = {
   url?: string
@@ -52,7 +52,7 @@ export class KernelClient {
         const msg = JSON.parse(String(ev.data)) as KernelMessage
         this.onMessage(msg)
       } catch {
-        this.onMessage({ type: 'stdout', data: String(ev.data) })
+        this.onMessage({ type: 'error', message: String(ev.data), run_id: null })
       }
     }
   }
@@ -66,19 +66,27 @@ export class KernelClient {
   }
 
   exec(code: string, timeout_s = 30) {
+    this.send({ type: 'exec', code, timeout_s })
+  }
+
+  cancel(run_id: string) {
+    this.send({ type: 'cancel', run_id })
+  }
+
+  private send(payload: unknown) {
     this.connect()
     const ws = this.ws
     if (!ws) return
 
-    const payload = JSON.stringify({ type: 'exec', code, timeout_s })
+    const raw = JSON.stringify(payload)
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(payload)
+      ws.send(raw)
       return
     }
 
     const onOpen = () => {
       ws.removeEventListener('open', onOpen)
-      ws.send(payload)
+      ws.send(raw)
     }
     ws.addEventListener('open', onOpen)
   }

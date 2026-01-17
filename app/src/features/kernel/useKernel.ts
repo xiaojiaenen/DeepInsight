@@ -4,14 +4,18 @@ import { terminalClear, terminalWrite, terminalWriteLine } from '../../lib/termi
 
 type UseKernelResult = {
   pythonBadge: string
+  isRunning: boolean
   run: (code: string) => void
+  stop: () => void
 }
 
 const DEFAULT_TIMEOUT_S = 30
 
 export function useKernel(): UseKernelResult {
   const [pythonBadge, setPythonBadge] = useState('')
+  const [isRunning, setIsRunning] = useState(false)
   const clientRef = useRef<KernelClient | null>(null)
+  const runIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     const normalizeForTerminal = (s: string) => s.replace(/\r?\n/g, '\r\n')
@@ -33,24 +37,33 @@ export function useKernel(): UseKernelResult {
           return
         }
         if (msg.type === 'start') {
+          runIdRef.current = msg.run_id
+          setIsRunning(true)
           terminalWriteLine('开始运行...')
           return
         }
         if (msg.type === 'stdout') {
+          if (runIdRef.current && msg.run_id !== runIdRef.current) return
           terminalWrite(normalizeForTerminal(msg.data))
           return
         }
         if (msg.type === 'stderr') {
+          if (runIdRef.current && msg.run_id !== runIdRef.current) return
           terminalWrite(normalizeForTerminal(msg.data))
           return
         }
         if (msg.type === 'done') {
+          if (runIdRef.current && msg.run_id !== runIdRef.current) return
+          setIsRunning(false)
+          runIdRef.current = null
           if (msg.timed_out) terminalWriteLine('运行超时。')
+          if (msg.cancelled) terminalWriteLine('已停止。')
           terminalWriteLine(`进程退出码: ${msg.exit_code}`)
           terminalWriteLine('运行结束。')
           return
         }
         if (msg.type === 'error') {
+          setIsRunning(false)
           terminalWriteLine(`错误: ${msg.message}`)
         }
       },
@@ -71,6 +84,11 @@ export function useKernel(): UseKernelResult {
     clientRef.current?.exec(code, DEFAULT_TIMEOUT_S)
   }
 
-  return { pythonBadge, run }
-}
+  const stop = () => {
+    const runId = runIdRef.current
+    if (!runId) return
+    clientRef.current?.cancel(runId)
+  }
 
+  return { pythonBadge, isRunning, run, stop }
+}
