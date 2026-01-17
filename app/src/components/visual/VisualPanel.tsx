@@ -1,18 +1,26 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { VisualCanvas } from './VisualCanvas'
 import { LessonController } from '../../features/lesson/LessonController'
+import { MatrixControls } from './MatrixControls'
 
 export const VisualPanel: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const useVideo = useMemo(() => videoUrl != null, [videoUrl])
   const [lessonUrl, setLessonUrl] = useState('/lessons/demo-visual.json')
+  const [lessonFileUrl, setLessonFileUrl] = useState<string | null>(null)
 
   useEffect(() => {
     return () => {
       if (videoUrl) URL.revokeObjectURL(videoUrl)
     }
   }, [videoUrl])
+
+  useEffect(() => {
+    return () => {
+      if (lessonFileUrl) URL.revokeObjectURL(lessonFileUrl)
+    }
+  }, [lessonFileUrl])
 
   return (
     <div className="w-full h-full relative bg-slate-50">
@@ -36,7 +44,26 @@ export const VisualPanel: React.FC = () => {
         >
           <option value="/lessons/demo-visual.json">demo-visual</option>
           <option value="/lessons/demo-matrix.json">demo-matrix</option>
+          {lessonFileUrl ? <option value={lessonFileUrl}>local-lesson</option> : null}
         </select>
+        <label className="text-xs text-slate-600 bg-white/90 backdrop-blur px-2 py-1 rounded border border-slate-200 cursor-pointer">
+          选择课件
+          <input
+            className="hidden"
+            type="file"
+            accept="application/json,.json"
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (!f) return
+              setLessonFileUrl((prev) => {
+                if (prev) URL.revokeObjectURL(prev)
+                const next = URL.createObjectURL(f)
+                setLessonUrl(next)
+                return next
+              })
+            }}
+          />
+        </label>
         <label className="text-xs text-slate-600 bg-white/90 backdrop-blur px-2 py-1 rounded border border-slate-200 cursor-pointer">
           选择视频
           <input
@@ -53,6 +80,20 @@ export const VisualPanel: React.FC = () => {
             }}
           />
         </label>
+        {lessonFileUrl ? (
+          <button
+            className="text-xs text-slate-600 bg-white/90 backdrop-blur px-2 py-1 rounded border border-slate-200"
+            onClick={() => {
+              setLessonFileUrl((prev) => {
+                if (prev) URL.revokeObjectURL(prev)
+                return null
+              })
+              setLessonUrl('/lessons/demo-visual.json')
+            }}
+          >
+            清除课件
+          </button>
+        ) : null}
         {useVideo ? (
           <button
             className="text-xs text-slate-600 bg-white/90 backdrop-blur px-2 py-1 rounded border border-slate-200"
@@ -67,6 +108,7 @@ export const VisualPanel: React.FC = () => {
           </button>
         ) : null}
       </div>
+      <MatrixControls />
       <LessonController url={lessonUrl} videoRef={videoRef} useVideo={useVideo} />
     </div>
   )
