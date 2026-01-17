@@ -6,6 +6,7 @@ import { TerminalSquare, XCircle, Eraser } from 'lucide-react';
 import { subscribeTerminalClear, subscribeTerminalWrite, terminalClear } from '../../lib/terminalBus';
 import { RunsPanel } from '../runs/RunsPanel';
 import { clearRuns } from '../../features/runs/runsStore';
+import { LinearRegressionLab } from '../labs/LinearRegressionLab';
 
 interface TerminalPanelProps {
   pythonBadge?: string;
@@ -15,7 +16,7 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => 
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
-  const [tab, setTab] = useState<'terminal' | 'runs'>('terminal');
+  const [tab, setTab] = useState<'terminal' | 'runs' | 'lab'>('terminal');
 
   useEffect(() => {
     if (!terminalRef.current) return;
@@ -138,6 +139,12 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => 
           >
             Runs
           </button>
+          <button
+            className={`px-2 py-1 rounded ${tab === 'lab' ? 'bg-white text-slate-900 border border-slate-200' : 'hover:bg-muted'}`}
+            onClick={() => setTab('lab')}
+          >
+            Lab
+          </button>
         </div>
         
         <div className="flex items-center gap-2">
@@ -158,7 +165,7 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => 
                 <XCircle className="w-3.5 h-3.5" />
               </button>
             </>
-          ) : (
+          ) : tab === 'runs' ? (
             <button
               className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors"
               title="清空 Runs"
@@ -166,6 +173,8 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => 
             >
               <Eraser className="w-3.5 h-3.5" />
             </button>
+          ) : (
+            <div />
           )}
         </div>
       </div>
@@ -176,6 +185,9 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => 
         </div>
         <div className={`${tab === 'runs' ? 'block' : 'hidden'} h-full`}>
           <RunsPanel embedded />
+        </div>
+        <div className={`${tab === 'lab' ? 'block' : 'hidden'} h-full`}>
+          <LinearRegressionLab />
         </div>
       </div>
     </div>
