@@ -1,14 +1,14 @@
-import type { VisualState } from './visualTypes'
+import type { VisualAction } from './visualActions'
 
-type Listener = (patch: Partial<VisualState>) => void
+type Listener = (action: VisualAction) => void
 
 const listeners = new Set<Listener>()
 
-export function publishVisualPatch(patch: Partial<VisualState>) {
-  for (const l of listeners) l(patch)
+export function publishVisualAction(action: VisualAction) {
+  for (const l of listeners) l(action)
 }
 
-export function subscribeVisualPatch(listener: Listener) {
+export function subscribeVisualAction(listener: Listener) {
   listeners.add(listener)
   return () => {
     listeners.delete(listener)

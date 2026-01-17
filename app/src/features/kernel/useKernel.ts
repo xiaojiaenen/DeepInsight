@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { KernelClient, type KernelMessage } from '../../lib/kernelClient'
 import { terminalClear, terminalWrite, terminalWriteLine } from '../../lib/terminalBus'
-import { publishVisualPatch } from '../visualization/visualBus'
-import type { VisualState } from '../visualization/visualTypes'
+import { coerceVisualAction } from '../visualization/coerceVisualAction'
+import { publishVisualAction } from '../visualization/visualBus'
 
 type UseKernelResult = {
   pythonBadge: string
@@ -56,7 +56,8 @@ export function useKernel(): UseKernelResult {
         }
         if (msg.type === 'vis') {
           if (runIdRef.current && msg.run_id !== runIdRef.current) return
-          if (msg.patch && typeof msg.patch === 'object') publishVisualPatch(msg.patch as Partial<VisualState>)
+          const action = coerceVisualAction(msg.patch)
+          if (action) publishVisualAction(action)
           return
         }
         if (msg.type === 'done') {
