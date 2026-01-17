@@ -49,8 +49,9 @@
 **目标**: 实现 Manim 视频与 WebGL 交互的无缝融合。
 
 - [ ] **Three.js 环境搭建**
-    - [ ] 安装 `@react-three/fiber`, `@react-three/drei`。
-    - [ ] 创建 `VisualCanvas` 组件。
+    - [x] 安装 `three`、`@react-three/fiber`, `@react-three/drei`。
+    - [x] 创建 `VisualCanvas` 组件。
+    - [x] 建立最小联动协议：stdout 输出 `__VIS__ : <JSON>` 驱动画布状态。
 - [ ] **视频播放器开发**
     - [ ] 封装 HTML5 Video 播放器，支持精确跳转。
     - [ ] 实现“隐藏式”播放：视频层在下，Canvas 层在上（透明背景）。
