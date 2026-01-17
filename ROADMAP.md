@@ -15,6 +15,8 @@
     - [x] 桌面端无边框窗口与自定义窗口控制（拖拽/最小化/最大化/关闭）。
     - [x] 渲染进程关闭 Node 集成，改为 preload 安全桥接。
     - [x] 使用 `uv` 创建 Python 虚拟环境并安装依赖。
+    - [x] 桌面端启动自动初始化 Python 环境并拉起 Kernel。
+    - [x] 预置常用科学计算库（numpy/pandas/matplotlib/sympy）。
     - [x] 验证前后端服务可同时启动。
 
 ---

@@ -17,6 +17,7 @@ export class KernelClient {
   private url: string
   private onMessage: (msg: KernelMessage) => void
   private onStatus?: (status: 'connecting' | 'open' | 'closed' | 'error') => void
+  private reconnectTimer: number | null = null
 
   constructor(options: KernelClientOptions) {
     this.url = options.url ?? 'ws://127.0.0.1:8000/ws'
@@ -29,12 +30,23 @@ export class KernelClient {
       return
     }
 
+    if (this.reconnectTimer) {
+      window.clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
+
     this.onStatus?.('connecting')
     this.ws = new WebSocket(this.url)
 
     this.ws.onopen = () => this.onStatus?.('open')
-    this.ws.onclose = () => this.onStatus?.('closed')
-    this.ws.onerror = () => this.onStatus?.('error')
+    this.ws.onclose = () => {
+      this.onStatus?.('closed')
+      this.scheduleReconnect()
+    }
+    this.ws.onerror = () => {
+      this.onStatus?.('error')
+      this.scheduleReconnect()
+    }
     this.ws.onmessage = (ev) => {
       try {
         const msg = JSON.parse(String(ev.data)) as KernelMessage
@@ -43,6 +55,14 @@ export class KernelClient {
         this.onMessage({ type: 'stdout', data: String(ev.data) })
       }
     }
+  }
+
+  private scheduleReconnect() {
+    if (this.reconnectTimer) return
+    this.reconnectTimer = window.setTimeout(() => {
+      this.reconnectTimer = null
+      this.connect()
+    }, 1000)
   }
 
   exec(code: string, timeout_s = 30) {
@@ -63,4 +83,3 @@ export class KernelClient {
     ws.addEventListener('open', onOpen)
   }
 }
-
