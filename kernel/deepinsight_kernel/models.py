@@ -32,12 +32,20 @@ class WsVis(TypedDict):
     patch: dict[str, Any]
 
 
+class WsMetric(TypedDict):
+    type: Literal["metric"]
+    run_id: str
+    name: str
+    value: float
+    step: int
+
+
+
 class WsDone(TypedDict):
     type: Literal["done"]
     run_id: str
     exit_code: Optional[int]
     timed_out: bool
-    cancelled: bool
 
 
 class WsError(TypedDict):
@@ -46,7 +54,7 @@ class WsError(TypedDict):
     run_id: Optional[str]
 
 
-WsServerMessage = Union[WsHello, WsStart, WsStdout, WsStderr, WsVis, WsDone, WsError]
+WsServerMessage = Union[WsHello, WsStart, WsStdout, WsStderr, WsVis, WsMetric, WsDone, WsError]
 
 
 class WsExec(TypedDict, total=False):

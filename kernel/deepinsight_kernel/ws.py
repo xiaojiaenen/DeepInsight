@@ -10,6 +10,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from .executor import execute_python
 from .models import WsClientMessage, WsServerMessage
+from .security import check_code_safety
 
 
 async def _ws_send(websocket: WebSocket, payload: WsServerMessage) -> None:
@@ -31,6 +32,36 @@ def _parse_vis_line(line: str) -> Optional[dict]:
     if isinstance(obj, dict):
         return obj
     return None
+
+def _parse_metric_line(line: str) -> Optional[tuple[str, float, int]]:
+    trimmed = line.strip()
+    if not trimmed.startswith("__METRIC__"):
+        return None
+    raw = trimmed[len("__METRIC__") :].strip()
+    if raw.startswith(":"):
+        raw = raw[1:].strip()
+    if not raw:
+        return None
+    try:
+        obj = json.loads(raw)
+    except Exception:
+        return None
+    if not isinstance(obj, dict):
+        return None
+    name = obj.get("name")
+    value = obj.get("value")
+    step = obj.get("step", 0)
+    if not isinstance(name, str):
+        return None
+    try:
+        value_f = float(value)
+    except Exception:
+        return None
+    try:
+        step_i = int(step)
+    except Exception:
+        step_i = 0
+    return (name, value_f, step_i)
 
 
 async def handle_ws(websocket: WebSocket) -> None:
@@ -81,6 +112,19 @@ async def handle_ws(websocket: WebSocket) -> None:
 
                 code = str(msg.get("code", ""))
                 timeout_s = float(msg.get("timeout_s", 30))
+
+                violations = check_code_safety(code)
+                if violations:
+                    head = violations[0]
+                    await _ws_send(
+                        websocket,
+                        {
+                            "type": "error",
+                            "message": f"安全检查未通过：禁止调用 {head.name} (line {head.lineno})",
+                            "run_id": None,
+                        },
+                    )
+                    continue
                 current_run_id = str(uuid4())
                 cancel_event = asyncio.Event()
                 run_id = current_run_id
@@ -91,6 +135,14 @@ async def handle_ws(websocket: WebSocket) -> None:
                     patch = _parse_vis_line(line)
                     if patch is not None:
                         await _ws_send(websocket, {"type": "vis", "run_id": run_id, "patch": patch})
+                        return
+                    metric = _parse_metric_line(line)
+                    if metric is not None:
+                        name, value, step = metric
+                        await _ws_send(
+                            websocket,
+                            {"type": "metric", "run_id": run_id, "name": name, "value": value, "step": step},
+                        )
                         return
                     await _ws_send(websocket, {"type": "stdout", "data": line, "run_id": run_id})
 

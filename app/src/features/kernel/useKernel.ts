@@ -3,6 +3,7 @@ import { KernelClient, type KernelMessage } from '../../lib/kernelClient'
 import { terminalClear, terminalWrite, terminalWriteLine } from '../../lib/terminalBus'
 import { coerceVisualAction } from '../visualization/coerceVisualAction'
 import { publishVisualAction } from '../visualization/visualBus'
+import { addMetric, finishRun, startRun } from '../runs/runsStore'
 
 type UseKernelResult = {
   pythonBadge: string
@@ -18,6 +19,7 @@ export function useKernel(): UseKernelResult {
   const [isRunning, setIsRunning] = useState(false)
   const clientRef = useRef<KernelClient | null>(null)
   const runIdRef = useRef<string | null>(null)
+  const lastCodeRef = useRef<string | undefined>(undefined)
 
   useEffect(() => {
     const normalizeForTerminal = (s: string) => s.replace(/\r?\n/g, '\r\n')
@@ -41,6 +43,7 @@ export function useKernel(): UseKernelResult {
         if (msg.type === 'start') {
           runIdRef.current = msg.run_id
           setIsRunning(true)
+          startRun(msg.run_id, lastCodeRef.current)
           terminalWriteLine('开始运行...')
           return
         }
@@ -60,9 +63,15 @@ export function useKernel(): UseKernelResult {
           if (action) publishVisualAction(action)
           return
         }
+        if (msg.type === 'metric') {
+          if (runIdRef.current && msg.run_id !== runIdRef.current) return
+          addMetric(msg.run_id, { name: msg.name, value: msg.value, step: msg.step })
+          return
+        }
         if (msg.type === 'done') {
           if (runIdRef.current && msg.run_id !== runIdRef.current) return
           setIsRunning(false)
+          finishRun(msg.run_id, { exitCode: msg.exit_code, timedOut: msg.timed_out, cancelled: msg.cancelled })
           runIdRef.current = null
           if (msg.timed_out) terminalWriteLine('运行超时。')
           if (msg.cancelled) terminalWriteLine('已停止。')
@@ -89,6 +98,7 @@ export function useKernel(): UseKernelResult {
     terminalClear()
     terminalWriteLine('DeepInsight 运行器')
     terminalWriteLine('--------------------------------')
+    lastCodeRef.current = code
     clientRef.current?.exec(code, DEFAULT_TIMEOUT_S)
   }
 

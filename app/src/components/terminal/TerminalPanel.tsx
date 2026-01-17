@@ -1,9 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { TerminalSquare, XCircle, Eraser } from 'lucide-react';
 import { subscribeTerminalClear, subscribeTerminalWrite, terminalClear } from '../../lib/terminalBus';
+import { RunsPanel } from '../runs/RunsPanel';
+import { clearRuns } from '../../features/runs/runsStore';
 
 interface TerminalPanelProps {
   pythonBadge?: string;
@@ -12,6 +14,8 @@ interface TerminalPanelProps {
 export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Terminal | null>(null);
+  const fitRef = useRef<FitAddon | null>(null);
+  const [tab, setTab] = useState<'terminal' | 'runs'>('terminal');
 
   useEffect(() => {
     if (!terminalRef.current) return;
@@ -53,6 +57,7 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => 
 
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
+    fitRef.current = fitAddon;
 
     term.open(terminalRef.current);
     let raf1 = 0;
@@ -98,40 +103,80 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => 
       unsubscribeClear();
       resizeObserver.disconnect();
       term.dispose();
+      fitRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (tab !== 'terminal') return;
+    const fitAddon = fitRef.current;
+    if (!fitAddon) return;
+    try {
+      fitAddon.fit();
+    } catch (e) {
+      void e
+    }
+  }, [tab]);
 
   return (
     <div className="flex flex-col h-full w-full bg-background border-t border-border">
       <div className="flex items-center justify-between px-4 py-2 bg-muted/30 border-b border-border h-10">
         <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-          <TerminalSquare className="w-4 h-4" />
-          <span>终端</span>
-          <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full ml-2">
-            {pythonBadge ? `Python ${pythonBadge}` : 'Python 未知'}
-          </span>
+          <button
+            className={`flex items-center gap-2 px-2 py-1 rounded ${tab === 'terminal' ? 'bg-white text-slate-900 border border-slate-200' : 'hover:bg-muted'}`}
+            onClick={() => setTab('terminal')}
+          >
+            <TerminalSquare className="w-4 h-4" />
+            <span>终端</span>
+            <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full ml-1">
+              {pythonBadge ? `Python ${pythonBadge}` : 'Python 未知'}
+            </span>
+          </button>
+          <button
+            className={`px-2 py-1 rounded ${tab === 'runs' ? 'bg-white text-slate-900 border border-slate-200' : 'hover:bg-muted'}`}
+            onClick={() => setTab('runs')}
+          >
+            Runs
+          </button>
         </div>
         
         <div className="flex items-center gap-2">
-          <button
-            className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors"
-            title="清除"
-            onClick={() => terminalClear()}
-          >
-            <Eraser className="w-3.5 h-3.5" />
-          </button>
-          <button
-            className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors"
-            title="关闭"
-            onClick={() => terminalClear()}
-          >
-            <XCircle className="w-3.5 h-3.5" />
-          </button>
+          {tab === 'terminal' ? (
+            <>
+              <button
+                className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors"
+                title="清除"
+                onClick={() => terminalClear()}
+              >
+                <Eraser className="w-3.5 h-3.5" />
+              </button>
+              <button
+                className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors"
+                title="关闭"
+                onClick={() => terminalClear()}
+              >
+                <XCircle className="w-3.5 h-3.5" />
+              </button>
+            </>
+          ) : (
+            <button
+              className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors"
+              title="清空 Runs"
+              onClick={() => clearRuns()}
+            >
+              <Eraser className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="flex-1 relative p-2 pl-3">
-        <div ref={terminalRef} className="w-full h-full" />
+      <div className="flex-1 relative">
+        <div className={`h-full p-2 pl-3 ${tab === 'terminal' ? 'block' : 'hidden'}`}>
+          <div ref={terminalRef} className="w-full h-full" />
+        </div>
+        <div className={`${tab === 'runs' ? 'block' : 'hidden'} h-full`}>
+          <RunsPanel embedded />
+        </div>
       </div>
     </div>
   );
