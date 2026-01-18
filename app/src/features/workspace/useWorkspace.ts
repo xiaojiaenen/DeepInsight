@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getWorkspaceState, subscribeWorkspace, type WorkspaceState } from './workspaceStore'
-import { detectPythonEnv, refreshDir } from './workspaceStore'
+import { detectPythonEnv, refreshDir, refreshGitStatus } from './workspaceStore'
 
 export function useWorkspace() {
   const [state, setState] = useState<WorkspaceState>(() => getWorkspaceState())
@@ -9,7 +9,8 @@ export function useWorkspace() {
     if (!state.root) return
     if (!state.entriesByDir['']) void refreshDir('')
     if (!state.pythonEnv) void detectPythonEnv()
-  }, [state.root, state.entriesByDir, state.pythonEnv])
+    if (state.gitStatus === undefined) void refreshGitStatus()
+  }, [state.root, state.entriesByDir, state.pythonEnv, state.gitStatus])
 
   const activeContent = useMemo(() => {
     const p = state.activePath

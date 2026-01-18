@@ -21,7 +21,7 @@ interface GitPanelProps {
     branch: string; 
     changes: number; 
     files: Array<{ path: string; status: string }> 
-  } | null;
+  } | null | undefined;
   gitLoading?: boolean;
   onOpenFile: (path: string) => void;
   onShowDiff: (path: string) => void;
@@ -68,7 +68,16 @@ export const GitPanel: React.FC<GitPanelProps> = ({ gitStatus, gitLoading, onOpe
     }
   };
 
-  if (!gitStatus) {
+  if (gitStatus === undefined) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50">
+        <RefreshCw className="w-6 h-6 text-slate-300 animate-spin mb-4" />
+        <h3 className="text-sm font-medium text-slate-900 mb-1">正在加载 Git 状态...</h3>
+      </div>
+    );
+  }
+
+  if (gitStatus === null) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50">
         <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center mb-4">

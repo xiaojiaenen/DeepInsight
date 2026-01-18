@@ -10,7 +10,7 @@ export type WorkspaceState = {
   openPathList: string[]
   pythonEnv: { hasPyproject: boolean; hasRequirements: boolean; hasVenv: boolean; installer: 'uv-sync' | 'uv-pip' | 'none' } | null
   installStatus: { status: 'idle' | 'running' | 'done' | 'error'; message?: string } | null
-  gitStatus: { branch: string; changes: number; files: Array<{ path: string; status: string }> } | null
+  gitStatus: { branch: string; changes: number; files: Array<{ path: string; status: string }> } | null | undefined
   gitLoading: boolean
 }
 
@@ -28,7 +28,7 @@ let state: WorkspaceState = {
   openPathList: [],
   pythonEnv: null,
   installStatus: null,
-  gitStatus: null,
+  gitStatus: undefined,
   gitLoading: false,
 }
 
@@ -346,6 +346,8 @@ export async function saveFile(path: string) {
   await w.writeFile(root, path, current.content)
   state = { ...state, openFiles: { ...state.openFiles, [path]: { content: current.content, dirty: false } } }
   notify()
+  // Refresh git status after save to update markers
+  void refreshGitStatus()
 }
 
 export async function createFile(path: string) {
@@ -355,6 +357,7 @@ export async function createFile(path: string) {
   const dir = path.split('/').slice(0, -1).join('/')
   await refreshDir(dir)
   await openFile(path)
+  void refreshGitStatus()
 }
 
 export async function createFolder(path: string) {
@@ -363,6 +366,7 @@ export async function createFolder(path: string) {
   await w.mkdir(state.root, path)
   const dir = path.split('/').slice(0, -1).join('/')
   await refreshDir(dir)
+  void refreshGitStatus()
 }
 
 export async function renamePath(from: string, to: string) {
@@ -383,6 +387,7 @@ export async function renamePath(from: string, to: string) {
   notify()
   await refreshDir(from.split('/').slice(0, -1).join('/'))
   await refreshDir(to.split('/').slice(0, -1).join('/'))
+  void refreshGitStatus()
 }
 
 export async function deletePath(path: string) {
@@ -396,4 +401,5 @@ export async function deletePath(path: string) {
   state = { ...state, openFiles: next }
   notify()
   await refreshDir(dir)
+  void refreshGitStatus()
 }

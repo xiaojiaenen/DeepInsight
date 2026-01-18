@@ -49,7 +49,8 @@ export const DiskWorkspacePanel: React.FC<{
   onRunFile: (path: string) => void
   onSelect?: (path: string) => void
   openPaths?: string[]
-}> = ({ root, expanded, entriesByDir, loadingDirs, activePath, onRunFile, onSelect, openPaths = [] }) => {
+  gitStatus?: { files: Array<{ path: string; status: string }> } | null
+}> = ({ root, expanded, entriesByDir, loadingDirs, activePath, onRunFile, onSelect, openPaths = [], gitStatus }) => {
   const [adding, setAdding] = useState<{ mode: 'file' | 'folder'; dir: string; value: string } | null>(null)
   const [renaming, setRenaming] = useState<{ from: string; value: string } | null>(null)
   const [confirmDel, setConfirmDel] = useState<{ path: string } | null>(null)
@@ -114,6 +115,9 @@ export const DiskWorkspacePanel: React.FC<{
               const isRenaming = renaming?.from === e.path
               const canRun = e.path.endsWith('.py')
               
+              const gFile = gitStatus?.files.find(f => f.path === e.path)
+              const gStatus = gFile?.status.trim() || ''
+
               return (
                 <div
                   key={e.path}
@@ -138,7 +142,13 @@ export const DiskWorkspacePanel: React.FC<{
                     ])
                   }}
                 >
-                  <FileIcon name={e.name} className={`w-3.5 h-3.5 ${isActive ? 'text-indigo-500' : 'text-slate-400'}`} />
+                  <FileIcon name={e.name} className={`w-3.5 h-3.5 ${
+                    isActive ? 'text-indigo-500' : 
+                    gStatus.includes('M') ? 'text-amber-500' :
+                    gStatus.includes('?') || gStatus.includes('A') ? 'text-emerald-500' :
+                    gStatus.includes('D') ? 'text-red-500' :
+                    'text-slate-400'
+                  }`} />
                   
                   {isRenaming ? (
                     <input
@@ -157,8 +167,22 @@ export const DiskWorkspacePanel: React.FC<{
                       onBlur={() => setRenaming(null)}
                     />
                   ) : (
-                    <span className="flex-1 text-xs truncate font-normal">
+                    <span className={`flex-1 text-xs truncate font-normal ${
+                      gStatus.includes('M') ? 'text-amber-600' :
+                      gStatus.includes('?') || gStatus.includes('A') ? 'text-emerald-600' :
+                      gStatus.includes('D') ? 'text-red-600' : ''
+                    }`}>
                       {e.name}
+                    </span>
+                  )}
+
+                  {gStatus && !isRenaming && (
+                    <span className={`text-[10px] font-bold ${
+                      gStatus.includes('M') ? 'text-amber-500' :
+                      gStatus.includes('?') || gStatus.includes('A') ? 'text-emerald-500' :
+                      gStatus.includes('D') ? 'text-red-500' : 'text-slate-400'
+                    }`}>
+                      {gStatus[0]}
                     </span>
                   )}
 
