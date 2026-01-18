@@ -13,6 +13,8 @@ import { cn } from '../layout/cn';
 import { MLVisualizer } from './MLVisualizer';
 import { DLVisualizer } from './DLVisualizer';
 import { AgentVisualizer } from './AgentVisualizer';
+import { RLVisualizer } from './RLVisualizer';
+import { LLMVisualizer } from './LLMVisualizer';
 
 type VizType = 'ml' | 'dl' | 'rl' | 'agent' | 'llm';
 
@@ -23,8 +25,9 @@ export const ModelVisualizer: React.FC = () => {
     switch (activeTab) {
       case 'ml': return <MLVisualizer />;
       case 'dl': return <DLVisualizer />;
-      case 'agent':
-      case 'llm': return <AgentVisualizer />;
+      case 'rl': return <RLVisualizer />;
+      case 'llm': return <LLMVisualizer />;
+      case 'agent': return <AgentVisualizer />;
       default:
         return (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50">

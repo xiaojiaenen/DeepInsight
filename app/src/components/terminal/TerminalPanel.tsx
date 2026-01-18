@@ -23,14 +23,46 @@ interface TerminalPanelProps {
   pythonBadge?: string;
 }
 
-type Tab = 'terminal' | 'runs' | 'lab' | 'problems';
+import { Plus, X } from 'lucide-react'
+
+type Tab = 'terminal' | 'runs' | 'lab' | 'problems'
+
+interface TerminalInstance {
+  id: string
+  name: string
+}
+
+interface TerminalPanelProps {
+  pythonBadge?: string
+}
 
 export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => {
-  const terminalRef = useRef<HTMLDivElement>(null);
-  const xtermRef = useRef<Terminal | null>(null);
-  const fitRef = useRef<FitAddon | null>(null);
-  const [tab, setTab] = useState<Tab>('terminal');
-  const [hw, setHw] = useState<HwSnapshot | null>(null);
+  const terminalRef = useRef<HTMLDivElement>(null)
+  const xtermRef = useRef<Terminal | null>(null)
+  const fitRef = useRef<FitAddon | null>(null)
+  const [tab, setTab] = useState<Tab>('terminal')
+  const [terminals, setTerminals] = useState<TerminalInstance[]>([
+    { id: '1', name: 'bash' }
+  ])
+  const [activeTerminalId, setActiveTerminalId] = useState('1')
+
+  const addTerminal = () => {
+    const newId = String(Date.now())
+    setTerminals([...terminals, { id: newId, name: `bash ${terminals.length + 1}` }])
+    setActiveTerminalId(newId)
+  }
+
+  const removeTerminal = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    if (terminals.length === 1) return
+    const newTerminals = terminals.filter(t => t.id !== id)
+    setTerminals(newTerminals)
+    if (activeTerminalId === id) {
+      setActiveTerminalId(newTerminals[newTerminals.length - 1].id)
+    }
+  }
+
+  const [hw, setHw] = useState<HwSnapshot | null>(null)
   const [oom, setOom] = useState<OomAnalysis | null>(null);
   const [trace, setTrace] = useState<TraceLocation | null>(null);
   const [markers, setMarkers] = useState<any[]>([]);
@@ -209,7 +241,39 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => 
             )}
           </button>
         </div>
+
+        {tab === 'terminal' && (
+          <div className="flex items-center gap-1 px-2 border-l border-slate-200 ml-2 overflow-x-auto no-scrollbar max-w-[400px]">
+            {terminals.map(t => (
+              <div
+                key={t.id}
+                onClick={() => setActiveTerminalId(t.id)}
+                className={`
+                  flex items-center gap-2 px-2 py-0.5 rounded cursor-pointer transition-all whitespace-nowrap
+                  ${activeTerminalId === t.id ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'text-slate-500 hover:bg-slate-100'}
+                `}
+              >
+                <TerminalIcon className="w-3 h-3" />
+                <span className="text-[11px] font-medium">{t.name}</span>
+                {terminals.length > 1 && (
+                  <X 
+                    className="w-2.5 h-2.5 hover:text-red-500 rounded-full hover:bg-red-50" 
+                    onClick={(e) => removeTerminal(e, t.id)}
+                  />
+                )}
+              </div>
+            ))}
+            <button 
+              onClick={addTerminal}
+              className="p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-indigo-600 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
         
+        <div className="flex-1" />
+
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-600 bg-white/80 border border-slate-200 px-2 py-1 rounded tabular-nums">
             {gpuText}
