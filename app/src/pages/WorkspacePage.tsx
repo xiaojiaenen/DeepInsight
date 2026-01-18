@@ -6,6 +6,7 @@ import { FilePanel } from '../components/editor/FilePanel'
 import { DiskWorkspacePanel } from '../components/editor/DiskWorkspacePanel'
 import { GitPanel } from '../components/editor/GitPanel'
 import { SearchPanel } from '../components/editor/SearchPanel'
+import { ModelVisualizer } from '../components/visualizer/ModelVisualizer'
 import { QuickOpen } from '../components/editor/QuickOpen'
 import { MarkdownPreview } from '../components/preview/MarkdownPreview'
 import { TerminalPanel } from '../components/terminal/TerminalPanel'
@@ -92,10 +93,12 @@ import {
   StickyNote, 
   Settings as SettingsIcon,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  BrainCircuit,
+  Boxes
 } from 'lucide-react'
 
-type SidebarTab = 'files' | 'search' | 'git'
+type SidebarTab = 'files' | 'search' | 'git' | 'visualizer' | 'settings'
 
 export const WorkspacePage: React.FC<WorkspacePageProps> = ({ pythonBadge, isRunning, onRun, onRunFile, onStop }) => {
   const { state, activeFile } = useProjectFiles()
@@ -246,6 +249,16 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({ pythonBadge, isRun
           >
             <GitBranch className="w-5 h-5" />
           </button>
+          <button 
+            className={`p-2 rounded-lg transition-colors ${sidebarTab === 'visualizer' ? 'text-white bg-white/10' : 'text-slate-400 hover:text-white'}`}
+            onClick={() => {
+              if (sidebarTab === 'visualizer' && sidebarVisible) setSidebarVisible(false)
+              else { setSidebarTab('visualizer'); setSidebarVisible(true); }
+            }}
+            title="模型可视化"
+          >
+            <BrainCircuit className="w-5 h-5" />
+          </button>
           <div className="flex-1" />
           <button className="p-2 text-slate-400 hover:text-white transition-colors" title="设置">
             <SettingsIcon className="w-5 h-5" />
@@ -295,6 +308,9 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({ pythonBadge, isRun
                   <p className="text-xs text-slate-500 mb-4">仅在本地目录模式下支持 Git 管理</p>
                 </div>
               )
+            )}
+            {sidebarTab === 'visualizer' && (
+              <ModelVisualizer />
             )}
           </div>
         )}
