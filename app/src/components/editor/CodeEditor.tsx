@@ -89,7 +89,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
     // 禁用 Monaco 原生右键菜单并绑定自定义菜单
     editor.onContextMenu((e) => {
-      const { clientX, clientY } = e.event;
+      // 优先从 browserEvent 获取，其次使用 posx/posy
+      const browserEvent = e.event.browserEvent;
+      const clientX = browserEvent?.clientX ?? e.event.posx;
+      const clientY = browserEvent?.clientY ?? e.event.posy;
+      
       const model = editor.getModel();
       const selection = editor.getSelection();
       const hasSelection = selection && !selection.isEmpty();
@@ -367,6 +371,54 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                 matchBrackets: 'always',
                 selectionHighlight: true,
                 occurrencesHighlight: true,
+                formatOnType: true,
+                formatOnPaste: true,
+                hover: {
+                  enabled: true,
+                  delay: 300,
+                  sticky: true
+                },
+                quickSuggestions: {
+                  other: true,
+                  comments: true,
+                  strings: true
+                },
+                parameterHints: {
+                  enabled: true,
+                  cycle: true
+                },
+                suggestOnTriggerCharacters: true,
+                acceptSuggestionOnEnter: 'on',
+                tabCompletion: 'on',
+                wordBasedSuggestions: 'allDocuments',
+                suggest: {
+                  snippetsPreventQuickSuggestions: false,
+                  showMethods: true,
+                  showFunctions: true,
+                  showConstructors: true,
+                  showFields: true,
+                  showVariables: true,
+                  showClasses: true,
+                  showStructs: true,
+                  showInterfaces: true,
+                  showModules: true,
+                  showProperties: true,
+                  showEvents: true,
+                  showOperators: true,
+                  showUnits: true,
+                  showValue: true,
+                  showConstants: true,
+                  showEnums: true,
+                  showEnumMembers: true,
+                  showKeywords: true,
+                  showWords: true,
+                  showColors: true,
+                  showFiles: true,
+                  showReferences: true,
+                  showFolders: true,
+                  showTypeParameters: true,
+                  showSnippets: true,
+                }
               }}
               onChange={(v) => onChange(v ?? '')}
               onMount={handleEditorDidMount}

@@ -2,7 +2,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
-import { TerminalSquare, XCircle, Eraser } from 'lucide-react';
+import { 
+  TerminalSquare, 
+  XCircle, 
+  Eraser, 
+  AlertCircle, 
+  AlertTriangle, 
+  Info 
+} from 'lucide-react';
 import { subscribeTerminalClear, subscribeTerminalWrite, terminalClear } from '../../lib/terminalBus';
 import { RunsPanel } from '../runs/RunsPanel';
 import { clearRuns } from '../../features/runs/runsStore';
@@ -16,14 +23,31 @@ interface TerminalPanelProps {
   pythonBadge?: string;
 }
 
+type Tab = 'terminal' | 'runs' | 'lab' | 'problems';
+
 export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
-  const [tab, setTab] = useState<'terminal' | 'runs' | 'lab'>('terminal');
+  const [tab, setTab] = useState<Tab>('terminal');
   const [hw, setHw] = useState<HwSnapshot | null>(null);
   const [oom, setOom] = useState<OomAnalysis | null>(null);
   const [trace, setTrace] = useState<TraceLocation | null>(null);
+  const [markers, setMarkers] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (tab === 'problems') {
+      const updateMarkers = () => {
+        if ((window as any).monaco) {
+          const allMarkers = (window as any).monaco.editor.getModelMarkers({});
+          setMarkers(allMarkers);
+        }
+      };
+      updateMarkers();
+      const interval = setInterval(updateMarkers, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [tab]);
 
   useEffect(() => {
     if (!terminalRef.current) return;
@@ -173,6 +197,17 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => 
           >
             Lab
           </button>
+          <button
+            className={`px-2 py-1 rounded flex items-center gap-1.5 ${tab === 'problems' ? 'bg-white text-slate-900 border border-slate-200' : 'hover:bg-muted'}`}
+            onClick={() => setTab('problems')}
+          >
+            <span>问题</span>
+            {markers.length > 0 && (
+              <span className="flex items-center justify-center min-w-[16px] h-4 px-1 text-[10px] font-bold bg-red-500 text-white rounded-full">
+                {markers.length}
+              </span>
+            )}
+          </button>
         </div>
         
         <div className="flex items-center gap-2">
@@ -263,6 +298,49 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => 
         </div>
         <div className={`${tab === 'lab' ? 'block' : 'hidden'} h-full`}>
           <LinearRegressionLab />
+        </div>
+        <div className={`${tab === 'problems' ? 'block' : 'hidden'} h-full overflow-y-auto custom-scrollbar bg-white`}>
+          {markers.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-2">
+              <Info className="w-8 h-8 opacity-20" />
+              <span className="text-sm">未检测到任何问题</span>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {markers.map((marker, idx) => (
+                <div 
+                  key={idx}
+                  className="flex items-start gap-3 p-2 hover:bg-slate-50 cursor-pointer group"
+                  onClick={() => {
+                    const path = marker.resource.path;
+                    const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+                    editorOpenFile({ path: cleanPath, lineNumber: marker.startLineNumber });
+                  }}
+                >
+                  <div className="mt-0.5 shrink-0">
+                    {marker.severity === 8 ? (
+                      <AlertCircle className="w-4 h-4 text-red-500" />
+                    ) : marker.severity === 4 ? (
+                      <AlertTriangle className="w-4 h-4 text-amber-500" />
+                    ) : (
+                      <Info className="w-4 h-4 text-blue-500" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-xs font-medium text-slate-700 truncate">{marker.message}</span>
+                      <span className="text-[10px] text-slate-400 shrink-0">
+                        [{marker.startLineNumber}, {marker.startColumn}]
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-slate-400 truncate font-mono">
+                      {marker.resource.path.split('/').pop()}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

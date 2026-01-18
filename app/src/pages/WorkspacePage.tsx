@@ -5,6 +5,8 @@ import { GitDiffView } from '../components/editor/GitDiffView'
 import { FilePanel } from '../components/editor/FilePanel'
 import { DiskWorkspacePanel } from '../components/editor/DiskWorkspacePanel'
 import { GitPanel } from '../components/editor/GitPanel'
+import { SearchPanel } from '../components/editor/SearchPanel'
+import { QuickOpen } from '../components/editor/QuickOpen'
 import { MarkdownPreview } from '../components/preview/MarkdownPreview'
 import { TerminalPanel } from '../components/terminal/TerminalPanel'
 import { useProjectFiles } from '../features/files/useProjectFiles'
@@ -86,13 +88,14 @@ type WorkspacePageProps = {
 import { 
   FileCode, 
   GitBranch, 
+  Search as SearchIcon,
   StickyNote, 
   Settings as SettingsIcon,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react'
 
-type SidebarTab = 'files' | 'git'
+type SidebarTab = 'files' | 'search' | 'git'
 
 export const WorkspacePage: React.FC<WorkspacePageProps> = ({ pythonBadge, isRunning, onRun, onRunFile, onStop }) => {
   const { state, activeFile } = useProjectFiles()
@@ -101,6 +104,8 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({ pythonBadge, isRun
   const [terminalCollapsed, setTerminalCollapsed] = useState(false)
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('files')
   const [sidebarVisible, setSidebarVisible] = useState(true)
+  const [quickOpenVisible, setQuickOpenVisible] = useState(false)
+
   const [diffPath, setDiffPath] = useState<string | null>(null)
   
   const [isDragging, setIsDragging] = useState(false)
@@ -140,6 +145,15 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({ pythonBadge, isRun
       if ((e.key === '`' || e.key === 'Backquote') && mod) {
         e.preventDefault()
         setTerminalCollapsed((v) => !v)
+      }
+      if (e.key === 'f' && mod && e.shiftKey) {
+        e.preventDefault()
+        setSidebarTab('search')
+        setSidebarVisible(true)
+      }
+      if (e.key === 'p' && mod) {
+        e.preventDefault()
+        setQuickOpenVisible(true)
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -213,6 +227,16 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({ pythonBadge, isRun
             <FileCode className="w-5 h-5" />
           </button>
           <button 
+            className={`p-2 rounded-lg transition-colors ${sidebarTab === 'search' ? 'text-white bg-white/10' : 'text-slate-400 hover:text-white'}`}
+            onClick={() => {
+              if (sidebarTab === 'search' && sidebarVisible) setSidebarVisible(false)
+              else { setSidebarTab('search'); setSidebarVisible(true); }
+            }}
+            title="全局搜索 (Ctrl+Shift+F)"
+          >
+            <SearchIcon className="w-5 h-5" />
+          </button>
+          <button 
             className={`p-2 rounded-lg transition-colors ${sidebarTab === 'git' ? 'text-white bg-white/10' : 'text-slate-400 hover:text-white'}`}
             onClick={() => {
               if (sidebarTab === 'git' && sidebarVisible) setSidebarVisible(false)
@@ -249,6 +273,9 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({ pythonBadge, isRun
               ) : (
                 <FilePanel files={state.files} activeId={state.activeFileId} onRunFile={onRunFile} />
               )
+            )}
+            {sidebarTab === 'search' && (
+              <SearchPanel />
             )}
             {sidebarTab === 'git' && (
               diskMode ? (
@@ -393,6 +420,7 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({ pythonBadge, isRun
           <TerminalPanel />
         </div>
       </div>
+      {quickOpenVisible && <QuickOpen onClose={() => setQuickOpenVisible(false)} />}
     </div>
   )
 }
