@@ -4,11 +4,14 @@ import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { 
   TerminalSquare, 
+  Terminal as TerminalIcon,
   XCircle, 
   Eraser, 
   AlertCircle, 
   AlertTriangle, 
-  Info 
+  Info,
+  Plus,
+  X
 } from 'lucide-react';
 import { subscribeTerminalClear, subscribeTerminalWrite, terminalClear } from '../../lib/terminalBus';
 import { RunsPanel } from '../runs/RunsPanel';
@@ -23,17 +26,11 @@ interface TerminalPanelProps {
   pythonBadge?: string;
 }
 
-import { Plus, X } from 'lucide-react'
-
 type Tab = 'terminal' | 'runs' | 'lab' | 'problems'
 
 interface TerminalInstance {
   id: string
   name: string
-}
-
-interface TerminalPanelProps {
-  pythonBadge?: string
 }
 
 export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => {
