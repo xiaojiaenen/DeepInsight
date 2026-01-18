@@ -29,4 +29,19 @@ contextBridge.exposeInMainWorld('workspace', {
     ipcRenderer.on('workspace:installStatus', onEvent)
     return () => ipcRenderer.off('workspace:installStatus', onEvent)
   },
+  gitStatus: (root: string) => ipcRenderer.invoke('workspace:gitStatus', { root }),
+  gitDiff: (root: string, filePath: string) => ipcRenderer.invoke('workspace:gitDiff', { root, path: filePath }),
+  gitAdd: (root: string, filePath: string) => ipcRenderer.invoke('workspace:gitAdd', { root, path: filePath }),
+  gitReset: (root: string, filePath: string) => ipcRenderer.invoke('workspace:gitReset', { root, path: filePath }),
+  gitCommit: (root: string, message: string, addAll?: boolean) => ipcRenderer.invoke('workspace:gitCommit', { root, message, addAll }),
+  gitPush: (root: string) => ipcRenderer.invoke('workspace:gitPush', { root }),
+  gitPull: (root: string) => ipcRenderer.invoke('workspace:gitPull', { root }),
+})
+
+contextBridge.exposeInMainWorld('notes', {
+  list: () => ipcRenderer.invoke('notes:list'),
+  read: (id: string) => ipcRenderer.invoke('notes:read', id),
+  write: (id: string, content: string) => ipcRenderer.invoke('notes:write', id, content),
+  delete: (id: string) => ipcRenderer.invoke('notes:delete', id),
+  create: (name: string) => ipcRenderer.invoke('notes:create', name),
 })

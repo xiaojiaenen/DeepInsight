@@ -1,8 +1,15 @@
 import React from 'react'
-import { Code, Hexagon, Settings } from 'lucide-react'
+import { Code, Hexagon, Settings, StickyNote } from 'lucide-react'
 import { cn } from './cn'
 
-export const Sidebar: React.FC = () => {
+export type MainTab = 'workspace' | 'notes' | 'settings'
+
+interface SidebarProps {
+  activeTab: MainTab
+  onTabChange: (tab: MainTab) => void
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
   const dragStyle: (React.CSSProperties & { WebkitAppRegion: 'drag' }) = { WebkitAppRegion: 'drag' }
   const noDragStyle: (React.CSSProperties & { WebkitAppRegion: 'no-drag' }) = { WebkitAppRegion: 'no-drag' }
 
@@ -22,9 +29,25 @@ export const Sidebar: React.FC = () => {
       </div>
 
       <nav className="flex-1 px-3 py-3 flex flex-col gap-1" style={noDragStyle}>
-        <NavItem icon={<Code className="w-4 h-4" />} label="工作台" active />
+        <NavItem 
+          icon={<Code className="w-4 h-4" />} 
+          label="工作台" 
+          active={activeTab === 'workspace'} 
+          onClick={() => onTabChange('workspace')}
+        />
+        <NavItem 
+          icon={<StickyNote className="w-4 h-4" />} 
+          label="笔记" 
+          active={activeTab === 'notes'} 
+          onClick={() => onTabChange('notes')}
+        />
         <div className="flex-1" />
-        <NavItem icon={<Settings className="w-4 h-4" />} label="设置" />
+        <NavItem 
+          icon={<Settings className="w-4 h-4" />} 
+          label="设置" 
+          active={activeTab === 'settings'} 
+          onClick={() => onTabChange('settings')}
+        />
       </nav>
     </aside>
   )
@@ -34,18 +57,21 @@ const NavItem = ({
   icon,
   active,
   label,
+  onClick,
 }: {
   icon: React.ReactNode
   active?: boolean
   label: string
+  onClick?: () => void
 }) => (
   <button
+    onClick={onClick}
     className={cn(
       'w-full h-10 px-3 rounded-lg flex items-center gap-3 text-sm transition-colors',
       active ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-100' : 'text-slate-600 hover:bg-white hover:text-slate-900',
     )}
   >
-    <span className="text-slate-500">{icon}</span>
+    <span className={cn('text-slate-500', active && 'text-blue-600')}>{icon}</span>
     <span className="font-medium">{label}</span>
   </button>
 )

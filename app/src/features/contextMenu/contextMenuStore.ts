@@ -1,9 +1,14 @@
-export type ContextMenuItem = {
-  label: string
-  onClick: () => void
-  disabled?: boolean
-  danger?: boolean
-}
+export type ContextMenuItem = 
+  | {
+      label: string
+      onClick?: () => void
+      disabled?: boolean
+      danger?: boolean
+      icon?: React.ReactNode
+      shortcut?: string
+      submenu?: ContextMenuItem[]
+    }
+  | { type: 'separator' }
 
 export type ContextMenuState =
   | { open: false }

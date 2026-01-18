@@ -1,12 +1,16 @@
+import { useState } from 'react'
 import { MainLayout } from './components/layout/MainLayout'
 import { useKernel } from './features/kernel/useKernel'
 import { WorkspacePage } from './pages/WorkspacePage'
+import { NotesPage } from './pages/NotesPage'
 import { getProjectState } from './features/files/filesStore'
 import { getWorkspaceState } from './features/workspace/workspaceStore'
 import { terminalWriteLine } from './lib/terminalBus'
+import type { MainTab } from './components/layout/Sidebar'
 
 function App() {
   const { pythonBadge, isRunning, runProject, runWorkspace, stop } = useKernel()
+  const [activeTab, setActiveTab] = useState<MainTab>('workspace')
 
   const runFile = (path: string) => {
     const ws = getWorkspaceState()
@@ -36,11 +40,24 @@ function App() {
 
   return (
     <MainLayout
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
       isRunning={isRunning}
       onRun={runActive}
       onStop={stop}
     >
-      <WorkspacePage pythonBadge={pythonBadge} onRun={runActive} onRunFile={runFile} onStop={stop} isRunning={isRunning} />
+      {activeTab === 'workspace' && (
+        <WorkspacePage pythonBadge={pythonBadge} onRun={runActive} onRunFile={runFile} onStop={stop} isRunning={isRunning} />
+      )}
+      {activeTab === 'notes' && (
+        <NotesPage />
+      )}
+      {activeTab === 'settings' && (
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center h-full">
+          <div className="text-2xl font-bold text-slate-900 mb-2">设置</div>
+          <p className="text-slate-500">配置您的 DeepInsight 体验</p>
+        </div>
+      )}
     </MainLayout>
   )
 }

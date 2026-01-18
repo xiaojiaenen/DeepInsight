@@ -367,6 +367,187 @@ ipcMain.handle('workspace:delete', async (_event, payload: { root: string; path:
   return true
 })
 
+ipcMain.handle('workspace:gitStatus', async (_event, payload: { root: string }) => {
+  const root = String(payload?.root ?? '')
+  const rootAbs = path.resolve(root)
+  try {
+    const branch = await new Promise<string>((resolve, reject) => {
+      const p = spawn('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: rootAbs })
+      let out = ''
+      p.stdout.on('data', (d) => (out += String(d)))
+      p.on('close', (code) => (code === 0 ? resolve(out.trim()) : reject(new Error('git error'))))
+    })
+    const files = await new Promise<{ path: string; status: string }[]>((resolve) => {
+      const p = spawn('git', ['status', '--porcelain'], { cwd: rootAbs })
+      let out = ''
+      p.stdout.on('data', (d) => (out += String(d)))
+      p.on('close', () => {
+        const lines = out.split('\n').filter((l) => l.trim().length > 0)
+        const result = lines.map((line) => {
+          const status = line.slice(0, 2)
+          const filePath = line.slice(3).trim()
+          return { path: filePath, status }
+        })
+        resolve(result)
+      })
+    })
+    return { branch, changes: files.length, files }
+  } catch {
+    return null
+  }
+})
+
+ipcMain.handle('workspace:gitDiff', async (_event, payload: { root: string; path: string }) => {
+  const root = String(payload?.root ?? '')
+  const rel = String(payload?.path ?? '')
+  const rootAbs = path.resolve(root)
+  try {
+    return await new Promise<string>((resolve, reject) => {
+      // 获取已暂存或未暂存的差异
+      const p = spawn('git', ['diff', 'HEAD', '--', rel], { cwd: rootAbs })
+      let out = ''
+      p.stdout.on('data', (d) => (out += String(d)))
+      p.on('close', (code) => (code === 0 ? resolve(out) : reject(new Error('git diff error'))))
+    })
+  } catch {
+    return ''
+  }
+})
+
+ipcMain.handle('workspace:gitCommit', async (_event, payload: { root: string; message: string; addAll?: boolean }) => {
+  const root = String(payload?.root ?? '')
+  const message = String(payload?.message ?? 'update')
+  const addAll = !!payload?.addAll
+  const rootAbs = path.resolve(root)
+  try {
+    if (addAll) {
+      await new Promise<void>((resolve, reject) => {
+        const p = spawn('git', ['add', '.'], { cwd: rootAbs })
+        p.on('close', (code) => (code === 0 ? resolve() : reject(new Error('git add failed'))))
+      })
+    }
+    await new Promise<void>((resolve, reject) => {
+      const p = spawn('git', ['commit', '-m', message], { cwd: rootAbs })
+      p.on('close', (code) => (code === 0 ? resolve() : reject(new Error('git commit failed'))))
+    })
+    return true
+  } catch {
+    return false
+  }
+})
+
+ipcMain.handle('workspace:gitAdd', async (_event, payload: { root: string; path: string }) => {
+  const root = String(payload?.root ?? '')
+  const rel = String(payload?.path ?? '')
+  const rootAbs = path.resolve(root)
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const p = spawn('git', ['add', rel], { cwd: rootAbs })
+      p.on('close', (code) => (code === 0 ? resolve() : reject(new Error('git add failed'))))
+    })
+    return true
+  } catch {
+    return false
+  }
+})
+
+ipcMain.handle('workspace:gitReset', async (_event, payload: { root: string; path: string }) => {
+  const root = String(payload?.root ?? '')
+  const rel = String(payload?.path ?? '')
+  const rootAbs = path.resolve(root)
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const p = spawn('git', ['reset', 'HEAD', rel], { cwd: rootAbs })
+      p.on('close', (code) => (code === 0 ? resolve() : reject(new Error('git reset failed'))))
+    })
+    return true
+  } catch {
+    return false
+  }
+})
+
+ipcMain.handle('workspace:gitPush', async (_event, payload: { root: string }) => {
+  const root = String(payload?.root ?? '')
+  const rootAbs = path.resolve(root)
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const p = spawn('git', ['push'], { cwd: rootAbs })
+      p.on('close', (code) => (code === 0 ? resolve() : reject(new Error('git push failed'))))
+    })
+    return true
+  } catch {
+    return false
+  }
+})
+
+ipcMain.handle('workspace:gitPull', async (_event, payload: { root: string }) => {
+  const root = String(payload?.root ?? '')
+  const rootAbs = path.resolve(root)
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const p = spawn('git', ['pull'], { cwd: rootAbs })
+      p.on('close', (code) => (code === 0 ? resolve() : reject(new Error('git pull failed'))))
+    })
+    return true
+  } catch {
+    return false
+  }
+})
+
+// --- 笔记中心 IPC ---
+const getNotesDir = () => {
+  const notesDir = path.join(app.getPath('userData'), 'notes')
+  if (!fs.existsSync(notesDir)) {
+    fs.mkdirSync(notesDir, { recursive: true })
+  }
+  return notesDir
+}
+
+ipcMain.handle('notes:list', async () => {
+  const notesDir = getNotesDir()
+  const entries = await fsp.readdir(notesDir, { withFileTypes: true })
+  return entries
+    .filter((e) => e.isFile() && e.name.endsWith('.md'))
+    .map((e) => ({
+      name: e.name,
+      id: e.name,
+      updatedAt: fs.statSync(path.join(notesDir, e.name)).mtimeMs,
+    }))
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+})
+
+ipcMain.handle('notes:read', async (_event, id: string) => {
+  const notesDir = getNotesDir()
+  const abs = path.join(notesDir, id)
+  if (!abs.startsWith(notesDir)) throw new Error('Invalid path')
+  return await fsp.readFile(abs, 'utf-8')
+})
+
+ipcMain.handle('notes:write', async (_event, id: string, content: string) => {
+  const notesDir = getNotesDir()
+  const abs = path.join(notesDir, id)
+  if (!abs.startsWith(notesDir)) throw new Error('Invalid path')
+  await fsp.writeFile(abs, content, 'utf-8')
+  return true
+})
+
+ipcMain.handle('notes:delete', async (_event, id: string) => {
+  const notesDir = getNotesDir()
+  const abs = path.join(notesDir, id)
+  if (!abs.startsWith(notesDir)) throw new Error('Invalid path')
+  await fsp.rm(abs)
+  return true
+})
+
+ipcMain.handle('notes:create', async (_event, name: string) => {
+  const notesDir = getNotesDir()
+  const fileName = name.endsWith('.md') ? name : `${name}.md`
+  const abs = path.join(notesDir, fileName)
+  if (fs.existsSync(abs)) throw new Error('笔记已存在')
+  await fsp.writeFile(abs, '# ' + name + '\n\n在这里记录你的想法...', 'utf-8')
+  return fileName
+})
+
 app.on('window-all-closed', () => {
   win = null
   stopKernel()

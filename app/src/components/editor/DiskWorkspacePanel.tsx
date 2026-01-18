@@ -1,13 +1,28 @@
 import React, { useState } from 'react'
-import { FilePlus, FolderOpen, FolderPlus, Play, RefreshCw, Trash2 } from 'lucide-react'
+import { 
+  FilePlus, 
+  FolderOpen, 
+  FolderPlus, 
+  Play, 
+  RefreshCw, 
+  Trash2, 
+  ChevronRight, 
+  ChevronDown, 
+  FileText, 
+  FileCode, 
+  Search,
+  MoreVertical,
+  X,
+  Edit3,
+  Copy,
+  Folder
+} from 'lucide-react'
 import type { WorkspaceEntry } from '../../features/workspace/workspaceStore'
 import { showContextMenu } from '../../features/contextMenu/contextMenuStore'
 import {
   createFile,
   createFolder,
-  detectPythonEnv,
   deletePath,
-  installPythonDeps,
   openFile,
   openWorkspaceFolder,
   refreshDir,
@@ -17,103 +32,121 @@ import {
 
 const join = (dir: string, name: string) => (dir ? `${dir}/${name}` : name)
 
+const FileIcon: React.FC<{ name: string; className?: string }> = ({ name, className }) => {
+  const ext = name.split('.').pop()?.toLowerCase()
+  if (['py', 'js', 'ts', 'tsx', 'jsx', 'html', 'css'].includes(ext || '')) {
+    return <FileCode className={className} />
+  }
+  return <FileText className={className} />
+}
+
 export const DiskWorkspacePanel: React.FC<{
   root: string | null
   expanded: Record<string, boolean>
   entriesByDir: Record<string, WorkspaceEntry[]>
   loadingDirs: Record<string, boolean>
   activePath: string | null
-  pythonEnv: { hasPyproject: boolean; hasRequirements: boolean; hasVenv: boolean; installer: 'uv-sync' | 'uv-pip' | 'none' } | null
-  installStatus: { status: 'idle' | 'running' | 'done' | 'error'; message?: string } | null
   onRunFile: (path: string) => void
-}> = ({ root, expanded, entriesByDir, loadingDirs, activePath, pythonEnv, installStatus, onRunFile }) => {
+  onSelect?: (path: string) => void
+  openPaths?: string[]
+}> = ({ root, expanded, entriesByDir, loadingDirs, activePath, onRunFile, onSelect, openPaths = [] }) => {
   const [adding, setAdding] = useState<{ mode: 'file' | 'folder'; dir: string; value: string } | null>(null)
   const [renaming, setRenaming] = useState<{ from: string; value: string } | null>(null)
   const [confirmDel, setConfirmDel] = useState<{ path: string } | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
   const noDragStyle: (React.CSSProperties & { WebkitAppRegion: 'no-drag' }) = { WebkitAppRegion: 'no-drag' }
 
   const renderDir = (dir: string, depth: number): React.ReactNode => {
-    const entries = entriesByDir[dir] ?? []
+    let entries = entriesByDir[dir] ?? []
+    
+    // Simple filter for search
+    if (searchQuery) {
+      entries = entries.filter(e => e.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    }
+
     return (
-      <div key={`dir:${dir}`}>
+      <div key={`dir:${dir}`} className="flex flex-col">
         {dir ? (
-          <div className="flex items-center justify-between gap-2 px-2 py-1" style={{ paddingLeft: 8 + depth * 12 }}>
-            <button
-              className="flex-1 text-left text-xs text-slate-700 hover:bg-white rounded px-2 py-1"
-              onClick={() => toggleDir(dir)}
-            >
-              {expanded[dir] ?? false ? '▾' : '▸'} {dir.split('/').pop()}
-            </button>
-            <button className="p-1 rounded hover:bg-white" title="新建文件" onClick={() => setAdding({ mode: 'file', dir, value: '' })}>
-              <FilePlus className="w-4 h-4 text-slate-600" />
-            </button>
-            <button
-              className="p-1 rounded hover:bg-white"
-              title="新建目录"
-              onClick={() => setAdding({ mode: 'folder', dir, value: '' })}
-            >
-              <FolderPlus className="w-4 h-4 text-slate-600" />
-            </button>
+          <div 
+            className="group flex items-center gap-1.5 px-2 py-1 hover:bg-slate-200/50 rounded cursor-pointer transition-colors" 
+            style={{ paddingLeft: 4 + depth * 12 }}
+            onClick={() => toggleDir(dir)}
+            onContextMenu={(ev) => {
+              ev.preventDefault()
+              showContextMenu(ev.clientX, ev.clientY, [
+                { label: '新建文件', icon: <FilePlus className="w-4 h-4" />, onClick: () => setAdding({ mode: 'file', dir, value: '' }) },
+                { label: '新建目录', icon: <FolderPlus className="w-4 h-4" />, onClick: () => setAdding({ mode: 'folder', dir, value: '' }) },
+                { type: 'separator' },
+                { label: '刷新', icon: <RefreshCw className="w-4 h-4" />, onClick: () => void refreshDir(dir) },
+                { label: '重命名', icon: <Edit3 className="w-4 h-4" />, onClick: () => setRenaming({ from: dir, value: dir.split('/').pop() || '' }) },
+                { label: '删除', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: () => setConfirmDel({ path: dir }) },
+              ])
+            }}
+          >
+            {expanded[dir] ?? false ? <ChevronDown className="w-3.5 h-3.5 text-slate-400" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400" />}
+            <span className="flex-1 text-xs text-slate-700 font-medium truncate">
+              {dir.split('/').pop()}
+            </span>
+            <div className="hidden group-hover:flex items-center gap-0.5">
+              <button 
+                className="p-0.5 hover:bg-slate-300 rounded" 
+                onClick={(e) => { e.stopPropagation(); setAdding({ mode: 'file', dir, value: '' }) }}
+                title="新建文件"
+              >
+                <FilePlus className="w-3 h-3 text-slate-500" />
+              </button>
+            </div>
           </div>
         ) : null}
 
         {(dir === '' || (expanded[dir] ?? false)) && (
-          <div>
-            {loadingDirs[dir] ? (
-              <div className="text-xs text-slate-500 px-3 py-2">加载中...</div>
-            ) : null}
+          <div className="flex flex-col">
+            {loadingDirs[dir] && (
+              <div className="text-[10px] text-slate-400 px-6 py-1 italic animate-pulse">加载中...</div>
+            )}
             {entries.map((e) => {
               if (e.kind === 'dir') {
-                const open = expanded[e.path] ?? false
-                return (
-                  <div
-                    key={e.path}
-                    className="rounded px-1 py-0.5 hover:bg-white"
-                    onContextMenu={(ev) => {
-                      ev.preventDefault()
-                      showContextMenu(ev.clientX, ev.clientY, [
-                        {
-                          label: '新建文件',
-                          onClick: () => setAdding({ mode: 'file', dir: e.path, value: '' }),
-                        },
-                        {
-                          label: '新建目录',
-                          onClick: () => setAdding({ mode: 'folder', dir: e.path, value: '' }),
-                        },
-                        { label: '刷新', onClick: () => void refreshDir(e.path) },
-                        { label: '重命名', onClick: () => setRenaming({ from: e.path, value: e.name }) },
-                        { label: '删除', danger: true, onClick: () => setConfirmDel({ path: e.path }) },
-                      ])
-                    }}
-                  >
-                    {renderDir(e.path, dir ? depth + 1 : depth)}
-                    {!open && !entriesByDir[e.path] ? null : null}
-                  </div>
-                )
+                return renderDir(e.path, dir ? depth + 1 : depth)
               }
+              
               const isActive = e.path === activePath
+              const isOpen = openPaths.includes(e.path)
               const isRenaming = renaming?.from === e.path
               const canRun = e.path.endsWith('.py')
+              
               return (
                 <div
                   key={e.path}
-                  className={`group rounded border flex items-center gap-2 ${isActive ? 'border-slate-900 bg-white' : 'border-slate-200 bg-white hover:bg-slate-50'}`}
-                  style={{ marginLeft: 8 + (dir ? (depth + 1) * 12 : depth * 12) }}
+                  className={`group flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-colors ${
+                    isActive ? 'bg-indigo-50 text-indigo-700' : 
+                    isOpen ? 'hover:bg-slate-200/50 text-slate-900' : 'hover:bg-slate-200/50 text-slate-600'
+                  }`}
+                  style={{ paddingLeft: 18 + (dir ? (depth + 1) * 12 : depth * 12) }}
+                  onClick={() => {
+                    onSelect?.(e.path)
+                    void openFile(e.path)
+                  }}
                   onContextMenu={(ev) => {
                     ev.preventDefault()
                     showContextMenu(ev.clientX, ev.clientY, [
-                      ...(canRun ? [{ label: '运行', onClick: () => onRunFile(e.path) }] : []),
-                      { label: '重命名', onClick: () => setRenaming({ from: e.path, value: e.name }) },
-                      { label: '删除', danger: true, onClick: () => setConfirmDel({ path: e.path }) },
+                      ...(canRun ? [{ label: '运行', icon: <Play className="w-4 h-4 text-emerald-500" />, onClick: () => onRunFile(e.path) }] : []),
+                      { label: '复制相对路径', icon: <Copy className="w-4 h-4" />, onClick: () => { navigator.clipboard.writeText(e.path) } },
+                      { type: 'separator' },
+                      { label: '重命名', icon: <Edit3 className="w-4 h-4" />, onClick: () => setRenaming({ from: e.path, value: e.name }) },
+                { label: '刷新', icon: <RefreshCw className="w-4 h-4" />, onClick: () => void openFile(e.path) },
+                { label: '删除', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: () => setConfirmDel({ path: e.path }) },
                     ])
                   }}
                 >
+                  <FileIcon name={e.name} className={`w-3.5 h-3.5 ${isActive ? 'text-indigo-500' : 'text-slate-400'}`} />
+                  
                   {isRenaming ? (
                     <input
-                      className="flex-1 text-xs px-2 py-1 outline-none bg-transparent"
+                      className="flex-1 text-xs px-1 bg-white border border-indigo-300 rounded outline-none"
                       autoFocus
                       value={renaming?.value ?? ''}
                       onChange={(ev) => setRenaming({ from: e.path, value: ev.target.value })}
+                      onClick={e => e.stopPropagation()}
                       onKeyDown={(ev) => {
                         if (ev.key === 'Escape') setRenaming(null)
                         if (ev.key === 'Enter') {
@@ -124,33 +157,38 @@ export const DiskWorkspacePanel: React.FC<{
                       onBlur={() => setRenaming(null)}
                     />
                   ) : (
-                    <button className="flex-1 text-left text-xs text-slate-800 truncate px-2 py-1" onClick={() => void openFile(e.path)}>
+                    <span className="flex-1 text-xs truncate font-normal">
                       {e.name}
-                    </button>
+                    </span>
                   )}
-                  {canRun ? (
+
+                  {isOpen && !isActive && (
+                    <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+                  )}
+
+                  <div className="hidden group-hover:flex items-center gap-1">
+                    {canRun && (
+                      <button
+                        className="p-0.5 hover:bg-slate-300 rounded"
+                        onClick={(e) => { e.stopPropagation(); onRunFile(e.path) }}
+                      >
+                        <Play className="w-3 h-3 text-slate-500" />
+                      </button>
+                    )}
                     <button
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-slate-100"
-                      title="运行"
-                      onClick={() => onRunFile(e.path)}
+                      className="p-0.5 hover:bg-slate-300 rounded"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                        showContextMenu(rect.left, rect.bottom, [
+                          { label: '重命名', icon: <Edit3 className="w-4 h-4" />, onClick: () => setRenaming({ from: e.path, value: e.name }) },
+                          { label: '删除', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: () => setConfirmDel({ path: e.path }) },
+                        ])
+                      }}
                     >
-                      <Play className="w-3.5 h-3.5 text-slate-700" />
+                      <MoreVertical className="w-3 h-3 text-slate-500" />
                     </button>
-                  ) : null}
-                  <button
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-slate-100"
-                    title="重命名"
-                    onClick={() => setRenaming({ from: e.path, value: e.name })}
-                  >
-                    ✎
-                  </button>
-                  <button
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-slate-100"
-                    title="删除"
-                    onClick={() => setConfirmDel({ path: e.path })}
-                  >
-                    <Trash2 className="w-3.5 h-3.5 text-slate-600" />
-                  </button>
+                  </div>
                 </div>
               )
             })}
@@ -161,171 +199,142 @@ export const DiskWorkspacePanel: React.FC<{
   }
 
   return (
-    <div className="w-72 border-r border-slate-200 bg-slate-50 flex flex-col min-h-0" style={noDragStyle}>
-      <div className="h-10 px-3 flex items-center justify-between border-b border-slate-200">
-        <div className="text-xs font-medium text-slate-700 truncate" title={root ?? ''}>
-          {root ? root : '未打开文件夹'}
-        </div>
+    <div className="flex-1 flex flex-col min-h-0 bg-slate-50/50" style={noDragStyle}>
+      {/* 标题栏 */}
+      <div className="h-10 px-3 flex items-center justify-between border-b border-slate-200 shrink-0">
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">资源管理器</span>
         <div className="flex items-center gap-1">
           <button
-            className="p-1 rounded hover:bg-white border border-slate-200 bg-white"
-            title="打开文件夹"
-            onClick={() => void openWorkspaceFolder()}
+            className="p-1 hover:bg-slate-200 rounded transition-colors"
+            title="根目录新建文件"
+            onClick={() => setAdding({ mode: 'file', dir: '', value: '' })}
           >
-            <FolderOpen className="w-4 h-4 text-slate-700" />
+            <FilePlus className="w-3.5 h-3.5 text-slate-500" />
           </button>
-          {root ? (
-            <button
-              className="p-1 rounded hover:bg-white border border-slate-200 bg-white"
-              title="刷新"
-              onClick={() => void refreshDir('')}
-            >
-              <RefreshCw className="w-4 h-4 text-slate-600" />
-            </button>
-          ) : null}
-          {root ? (
-            <>
-              <button
-                className="p-1 rounded hover:bg-white border border-slate-200 bg-white"
-                title="根目录新建文件"
-                onClick={() => setAdding({ mode: 'file', dir: '', value: '' })}
-              >
-                <FilePlus className="w-4 h-4 text-slate-600" />
-              </button>
-              <button
-                className="p-1 rounded hover:bg-white border border-slate-200 bg-white"
-                title="根目录新建目录"
-                onClick={() => setAdding({ mode: 'folder', dir: '', value: '' })}
-              >
-                <FolderPlus className="w-4 h-4 text-slate-600" />
-              </button>
-              <button
-                className="p-1 rounded hover:bg-white border border-slate-200 bg-white"
-                title="识别 Python 环境"
-                onClick={() => void detectPythonEnv()}
-              >
-                <RefreshCw className="w-4 h-4 text-slate-600" />
-              </button>
-            </>
-          ) : null}
+          <button
+            className="p-1 hover:bg-slate-200 rounded transition-colors"
+            title="根目录新建目录"
+            onClick={() => setAdding({ mode: 'folder', dir: '', value: '' })}
+          >
+            <FolderPlus className="w-3.5 h-3.5 text-slate-500" />
+          </button>
+          <button
+            className="p-1 hover:bg-slate-200 rounded transition-colors"
+            title="刷新"
+            onClick={() => void refreshDir('')}
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+          </button>
         </div>
       </div>
 
-      {root ? (
-        <div className="px-3 py-3 border-b border-slate-200 bg-white space-y-3">
-          <div>
-            <div className="text-[11px] text-slate-600 mb-1">Python 环境</div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span
-                className={`text-[11px] px-2 py-0.5 rounded-full border ${
-                  pythonEnv?.hasVenv ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600'
-                }`}
-              >
-                .venv {pythonEnv?.hasVenv ? '已存在' : '未发现'}
-              </span>
-              <span
-                className={`text-[11px] px-2 py-0.5 rounded-full border ${
-                  pythonEnv?.hasPyproject ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-slate-50 border-slate-200 text-slate-600'
-                }`}
-              >
-                pyproject {pythonEnv?.hasPyproject ? '✓' : '—'}
-              </span>
-              <span
-                className={`text-[11px] px-2 py-0.5 rounded-full border ${
-                  pythonEnv?.hasRequirements ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-slate-50 border-slate-200 text-slate-600'
-                }`}
-              >
-                requirements {pythonEnv?.hasRequirements ? '✓' : '—'}
-              </span>
-              <span className="text-[11px] px-2 py-0.5 rounded-full border bg-slate-50 border-slate-200 text-slate-600">
-                {pythonEnv?.installer ? `安装器: ${pythonEnv.installer}` : '安装器: 未识别'}
-              </span>
-            </div>
+      {/* 搜索框 */}
+      <div className="px-3 py-2 shrink-0">
+        <div className="relative group">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+          <input 
+            type="text"
+            placeholder="搜索文件..."
+            className="w-full pl-7 pr-2 py-1.5 text-xs bg-slate-100 border-none rounded outline-none focus:ring-1 focus:ring-indigo-500/30 transition-all"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button 
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-slate-200 rounded"
+              onClick={() => setSearchQuery('')}
+            >
+              <X className="w-2.5 h-2.5 text-slate-400" />
+            </button>
+          )}
+        </div>
+      </div>
 
-            <div className="mt-2 flex items-center justify-between gap-2">
-              <div className="text-[11px] text-slate-600 truncate">
-                {installStatus?.status === 'running'
-                  ? '正在安装...（日志在终端）'
-                  : installStatus?.status === 'done'
-                    ? '安装完成'
-                    : installStatus?.status === 'error'
-                      ? `安装失败：${installStatus.message ?? ''}`
-                      : ''}
+      {/* 新建/重命名 状态展示 */}
+      {(adding || confirmDel) && (
+        <div className="mx-3 mb-2 p-2 bg-white rounded border border-slate-200 shadow-sm animate-in fade-in slide-in-from-top-1">
+          {adding && (
+            <>
+              <div className="text-[10px] font-medium text-slate-400 mb-1.5">
+                在 {adding.dir || '根目录'} {adding.mode === 'file' ? '新建文件' : '新建目录'}
               </div>
-              <button
-                className="text-xs px-2 py-1 rounded border border-slate-200 bg-slate-900 text-white disabled:opacity-50"
-                disabled={!pythonEnv || pythonEnv.installer === 'none' || installStatus?.status === 'running'}
-                onClick={() => void installPythonDeps()}
-              >
-                一键安装
-              </button>
+              <div className="flex items-center gap-1.5">
+                <input
+                  className="flex-1 text-xs px-2 py-1 bg-slate-50 border border-slate-200 rounded outline-none focus:border-indigo-500"
+                  autoFocus
+                  placeholder="名称..."
+                  value={adding.value}
+                  onChange={(e) => setAdding({ ...adding, value: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') setAdding(null)
+                    if (e.key === 'Enter') {
+                      const v = adding.value.trim()
+                      if (!v) return
+                      const p = join(adding.dir, v)
+                      if (adding.mode === 'file') void createFile(p)
+                      else void createFolder(p)
+                      setAdding(null)
+                    }
+                  }}
+                />
+                <button 
+                  className="p-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+                  onClick={() => {
+                    const v = adding.value.trim()
+                    if (!v) return
+                    const p = join(adding.dir, v)
+                    if (adding.mode === 'file') void createFile(p)
+                    else void createFolder(p)
+                    setAdding(null)
+                  }}
+                  disabled={!adding.value.trim()}
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+                <button className="p-1 hover:bg-slate-100 rounded text-slate-400" onClick={() => setAdding(null)}>
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </>
+          )}
+          {confirmDel && (
+            <div className="flex flex-col gap-2">
+              <div className="text-xs text-slate-600">确定要删除 <span className="font-semibold text-slate-900 break-all">{confirmDel.path}</span> 吗？此操作不可撤销。</div>
+              <div className="flex justify-end gap-2">
+                <button className="px-2 py-1 text-[11px] font-medium text-slate-500 hover:text-slate-700" onClick={() => setConfirmDel(null)}>取消</button>
+                <button 
+                  className="px-2 py-1 text-[11px] font-medium bg-red-50 text-red-600 rounded hover:bg-red-100 border border-red-100"
+                  onClick={() => {
+                    void deletePath(confirmDel.path)
+                    setConfirmDel(null)
+                  }}
+                >
+                  确认删除
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
-      ) : null}
+      )}
 
-      {adding ? (
-        <div className="p-2 border-b border-slate-200 bg-white">
-          <div className="text-[11px] text-slate-600 mb-1">{adding.mode === 'file' ? '新建文件名' : '新建目录名'}</div>
-          <div className="flex items-center gap-2">
-            <input
-              className="flex-1 text-xs px-2 py-1 rounded border border-slate-200 outline-none"
-              autoFocus
-              value={adding.value}
-              onChange={(e) => setAdding({ ...adding, value: e.target.value })}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') setAdding(null)
-                if (e.key === 'Enter') {
-                  const v = adding.value.trim()
-                  if (!v) return
-                  const p = join(adding.dir, v)
-                  if (adding.mode === 'file') void createFile(p)
-                  else void createFolder(p)
-                  setAdding(null)
-                }
-              }}
-            />
-            <button
-              className="text-xs px-2 py-1 rounded border border-slate-200 bg-slate-900 text-white"
-              onClick={() => {
-                const v = adding.value.trim()
-                if (!v) return
-                const p = join(adding.dir, v)
-                if (adding.mode === 'file') void createFile(p)
-                else void createFolder(p)
-                setAdding(null)
-              }}
+      {/* 文件树内容 */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-1 custom-scrollbar">
+        {!root ? (
+          <div className="flex flex-col items-center justify-center p-8 text-center h-full">
+            <FolderOpen className="w-12 h-12 text-slate-200 mb-4" />
+            <h3 className="text-sm font-medium text-slate-900 mb-1">未打开文件夹</h3>
+            <p className="text-xs text-slate-500 mb-4">请打开一个本地目录开始工作</p>
+            <button 
+              onClick={() => void openWorkspaceFolder()}
+              className="px-4 py-1.5 bg-white border border-slate-200 rounded text-xs font-medium text-slate-700 hover:bg-slate-50 shadow-sm transition-all"
             >
-              创建
-            </button>
-            <button className="text-xs px-2 py-1 rounded border border-slate-200 bg-white" onClick={() => setAdding(null)}>
-              取消
+              选择文件夹
             </button>
           </div>
-        </div>
-      ) : null}
-
-      {confirmDel ? (
-        <div className="p-2 border-b border-slate-200 bg-white">
-          <div className="text-xs text-slate-700">确认删除 {confirmDel.path}？</div>
-          <div className="mt-2 flex items-center gap-2">
-            <button
-              className="text-xs px-2 py-1 rounded border border-red-200 bg-red-600 text-white"
-              onClick={() => {
-                void deletePath(confirmDel.path)
-                setConfirmDel(null)
-              }}
-            >
-              删除
-            </button>
-            <button className="text-xs px-2 py-1 rounded border border-slate-200 bg-white" onClick={() => setConfirmDel(null)}>
-              取消
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="flex-1 min-h-0 overflow-auto p-2">{renderDir('', 0)}</div>
+        ) : (
+          renderDir('', 0)
+        )}
+      </div>
     </div>
   )
 }

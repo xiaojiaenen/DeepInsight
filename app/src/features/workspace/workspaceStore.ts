@@ -7,11 +7,14 @@ export type WorkspaceState = {
   loadingDirs: Record<string, boolean>
   activePath: string | null
   openFiles: Record<string, { content: string; dirty: boolean }>
+  openPathList: string[]
   pythonEnv: { hasPyproject: boolean; hasRequirements: boolean; hasVenv: boolean; installer: 'uv-sync' | 'uv-pip' | 'none' } | null
   installStatus: { status: 'idle' | 'running' | 'done' | 'error'; message?: string } | null
+  gitStatus: { branch: string; changes: number; files: Array<{ path: string; status: string }> } | null
+  gitLoading: boolean
 }
 
-const STORAGE_KEY = 'deepinsight:workspace:v1'
+const STORAGE_KEY = 'deepinsight:workspace:v2'
 
 type Listener = (s: WorkspaceState) => void
 
@@ -22,15 +25,22 @@ let state: WorkspaceState = {
   loadingDirs: {},
   activePath: null,
   openFiles: {},
+  openPathList: [],
   pythonEnv: null,
   installStatus: null,
+  gitStatus: null,
+  gitLoading: false,
 }
 
 const listeners = new Set<Listener>()
 
 const persist = () => {
   try {
-    const payload = { root: state.root }
+    const payload = { 
+      root: state.root,
+      openPathList: state.openPathList,
+      activePath: state.activePath 
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
   } catch (e) {
     void e
@@ -47,7 +57,10 @@ const load = () => {
     state = {
       ...state,
       root: typeof obj.root === 'string' ? obj.root : null,
+      openPathList: Array.isArray(obj.openPathList) ? obj.openPathList : [],
+      activePath: typeof obj.activePath === 'string' ? obj.activePath : null,
     }
+    // We don't load contents here, they will be loaded when needed
   } catch (e) {
     void e
   }
@@ -93,6 +106,105 @@ export async function openWorkspaceFolder() {
   notify()
   await refreshDir('')
   await detectPythonEnv()
+  await refreshGitStatus()
+}
+
+export async function refreshGitStatus() {
+  const w = api()
+  if (!w || !state.root) return
+  try {
+    const status = await w.gitStatus(state.root)
+    state = { ...state, gitStatus: status }
+    notify()
+  } catch {
+    state = { ...state, gitStatus: null }
+    notify()
+  }
+}
+
+export async function gitCommit(message: string, addAll = true) {
+  const w = api()
+  if (!w || !state.root) return
+  state = { ...state, gitLoading: true }
+  notify()
+  try {
+    const ok = await w.gitCommit(state.root, message, addAll)
+    if (ok) await refreshGitStatus()
+    return ok
+  } finally {
+    state = { ...state, gitLoading: false }
+    notify()
+  }
+}
+
+export async function gitAdd(path: string) {
+  const w = api()
+  if (!w || !state.root) return
+  state = { ...state, gitLoading: true }
+  notify()
+  try {
+    const ok = await w.gitAdd(state.root, path)
+    if (ok) await refreshGitStatus()
+    return ok
+  } finally {
+    state = { ...state, gitLoading: false }
+    notify()
+  }
+}
+
+export async function gitReset(path: string) {
+  const w = api()
+  if (!w || !state.root) return
+  state = { ...state, gitLoading: true }
+  notify()
+  try {
+    const ok = await w.gitReset(state.root, path)
+    if (ok) await refreshGitStatus()
+    return ok
+  } finally {
+    state = { ...state, gitLoading: false }
+    notify()
+  }
+}
+
+export async function gitPush() {
+  const w = api()
+  if (!w || !state.root) return
+  state = { ...state, gitLoading: true }
+  notify()
+  try {
+    const ok = await w.gitPush(state.root)
+    if (ok) await refreshGitStatus()
+    return ok
+  } finally {
+    state = { ...state, gitLoading: false }
+    notify()
+  }
+}
+
+export async function gitPull() {
+  const w = api()
+  if (!w || !state.root) return
+  state = { ...state, gitLoading: true }
+  notify()
+  try {
+    const ok = await w.gitPull(state.root)
+    if (ok) await refreshGitStatus()
+    return ok
+  } finally {
+    state = { ...state, gitLoading: false }
+    notify()
+  }
+}
+
+export async function getGitDiff(path: string) {
+  const w = api()
+  if (!w || !state.root) return ''
+  try {
+    return await w.gitDiff(state.root, path)
+  } catch {
+    return ''
+  }
 }
 
 export async function refreshDir(dir: string) {
@@ -164,11 +276,49 @@ export async function openFile(path: string) {
   const w = api()
   if (!w || !state.root) return
   const root = state.root
-  state = { ...state, activePath: path }
+  
+  // Add to openPathList if not already there
+  const nextOpenList = state.openPathList.includes(path) 
+    ? state.openPathList 
+    : [...state.openPathList, path]
+
+  state = { 
+    ...state, 
+    activePath: path,
+    openPathList: nextOpenList
+  }
   notify()
+  
   if (state.openFiles[path]) return
-  const content = await w.readFile(root, path)
-  state = { ...state, openFiles: { ...state.openFiles, [path]: { content, dirty: false } } }
+  try {
+    const content = await w.readFile(root, path)
+    state = { ...state, openFiles: { ...state.openFiles, [path]: { content, dirty: false } } }
+    notify()
+  } catch (e) {
+    console.error('Failed to read file:', e)
+    // Populate with empty content to avoid stuck in loading/blank state if desired,
+    // or just leave it. But let's at least ensure we don't crash.
+    state = { ...state, openFiles: { ...state.openFiles, [path]: { content: '', dirty: false } } }
+    notify()
+  }
+}
+
+export function closeFile(path: string) {
+  const nextOpenList = state.openPathList.filter(p => p !== path)
+  const nextOpenFiles = { ...state.openFiles }
+  delete nextOpenFiles[path]
+  
+  let nextActive = state.activePath
+  if (nextActive === path) {
+    nextActive = nextOpenList.length > 0 ? nextOpenList[nextOpenList.length - 1] : null
+  }
+  
+  state = {
+    ...state,
+    openPathList: nextOpenList,
+    openFiles: nextOpenFiles,
+    activePath: nextActive
+  }
   notify()
 }
 

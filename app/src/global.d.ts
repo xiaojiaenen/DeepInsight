@@ -23,6 +23,20 @@ declare global {
     installPythonDeps: (root: string) => Promise<boolean>
     onInstallLog: (listener: (line: string) => void) => () => void
     onInstallStatus: (listener: (status: { status: 'idle' | 'running' | 'done' | 'error'; message?: string }) => void) => () => void
+    gitStatus: (root: string) => Promise<{ 
+      branch: string; 
+      changes: number; 
+      files: Array<{ path: string; status: string }> 
+    } | null>
+    gitCommit: (root: string, message: string) => Promise<boolean>
+    gitPush: (root: string) => Promise<boolean>
+  }
+  notes?: {
+    list: () => Promise<Array<{ name: string; id: string; updatedAt: number }>>
+    read: (id: string) => Promise<string>
+    write: (id: string, content: string) => Promise<boolean>
+    delete: (id: string) => Promise<boolean>
+    create: (name: string) => Promise<string>
   }
   }
 }
