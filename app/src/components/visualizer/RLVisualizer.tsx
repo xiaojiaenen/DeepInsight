@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Grid, Box, Sphere, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
+import { editorOpenFile } from '../../lib/editorBus';
 
 const Agent = ({ position }: { position: [number, number, number] }) => {
   const meshRef = useRef<THREE.Mesh>(null);
@@ -13,7 +14,16 @@ const Agent = ({ position }: { position: [number, number, number] }) => {
   });
 
   return (
-    <mesh ref={meshRef} position={position}>
+    <mesh 
+      ref={meshRef} 
+      position={position}
+      onClick={(e) => {
+        e.stopPropagation();
+        editorOpenFile({ path: 'rl_agent.py', lineNumber: 25 });
+      }}
+      onPointerOver={() => { document.body.style.cursor = 'pointer'; }}
+      onPointerOut={() => { document.body.style.cursor = 'default'; }}
+    >
       <sphereGeometry args={[0.3, 32, 32]} />
       <meshStandardMaterial color="#6366f1" emissive="#6366f1" emissiveIntensity={0.5} />
     </mesh>
@@ -24,7 +34,16 @@ const Environment = () => {
   return (
     <group>
       {/* 奖励目标 */}
-      <Box position={[3, 0.5, 3]} args={[0.8, 0.8, 0.8]}>
+      <Box 
+        position={[3, 0.5, 3]} 
+        args={[0.8, 0.8, 0.8]}
+        onClick={(e) => {
+          e.stopPropagation();
+          editorOpenFile({ path: 'environment.py', lineNumber: 50 });
+        }}
+        onPointerOver={() => { document.body.style.cursor = 'pointer'; }}
+        onPointerOut={() => { document.body.style.cursor = 'default'; }}
+      >
         <meshStandardMaterial color="#10b981" />
       </Box>
       {/* 障碍物 */}
@@ -46,6 +65,13 @@ export const RLVisualizer: React.FC = () => {
     epsilon: 0.15,
     steps: 12
   });
+
+  const links = [
+    { label: 'Policy Net', path: 'rl_agent.py', line: 10 },
+    { label: 'Target Net', path: 'rl_agent.py', line: 15 },
+    { label: 'Experience Replay', path: 'utils/replay.py', line: 1 },
+    { label: 'Reward Function', path: 'environment.py', line: 30 },
+  ];
 
   return (
     <div className="w-full h-full bg-slate-100 relative">
@@ -76,9 +102,14 @@ export const RLVisualizer: React.FC = () => {
       </Canvas>
 
       <div className="absolute bottom-4 left-4 right-4 z-10 flex gap-2 overflow-x-auto no-scrollbar">
-        {['Policy Net', 'Target Net', 'Experience Replay', 'Action Log'].map(tag => (
-          <button key={tag} className="px-3 py-1 bg-white/80 backdrop-blur border border-slate-200 rounded-full text-[10px] text-slate-600 whitespace-nowrap hover:bg-white transition-colors">
-            {tag}
+        {links.map(link => (
+          <button 
+            key={link.label} 
+            onClick={() => editorOpenFile({ path: link.path, lineNumber: link.line })}
+            className="px-3 py-1 bg-white/80 backdrop-blur border border-slate-200 rounded-full text-[10px] text-slate-600 whitespace-nowrap hover:bg-white hover:text-indigo-600 hover:border-indigo-200 transition-all flex items-center gap-1"
+          >
+            <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full" />
+            {link.label}
           </button>
         ))}
       </div>

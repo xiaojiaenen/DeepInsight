@@ -2,6 +2,7 @@ import React, { useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Stars, Text } from '@react-three/drei';
 import * as THREE from 'three';
+import { editorOpenFile } from '../../lib/editorBus';
 
 const PointCloud = () => {
   const points = useMemo(() => {
@@ -31,7 +32,16 @@ const PointCloud = () => {
   return (
     <group ref={groupRef}>
       {points.map((p, i) => (
-        <mesh key={i} position={p.pos as [number, number, number]}>
+        <mesh 
+          key={i} 
+          position={p.pos as [number, number, number]}
+          onClick={(e) => {
+            e.stopPropagation();
+            editorOpenFile({ path: 'dataset.py', lineNumber: 20 });
+          }}
+          onPointerOver={() => { document.body.style.cursor = 'pointer'; }}
+          onPointerOut={() => { document.body.style.cursor = 'default'; }}
+        >
           <sphereGeometry args={[0.08, 16, 16]} />
           <meshStandardMaterial color={p.color} emissive={p.color} emissiveIntensity={0.5} />
         </mesh>
@@ -43,9 +53,16 @@ const PointCloud = () => {
 export const MLVisualizer: React.FC = () => {
   return (
     <div className="w-full h-full bg-slate-900">
-      <div className="absolute top-4 left-4 z-10 text-white pointer-events-none">
+      <div className="absolute top-4 left-4 z-10 text-white flex flex-col gap-1">
         <h4 className="text-xs font-bold uppercase tracking-widest opacity-50">Feature Space</h4>
         <p className="text-[10px] opacity-70">UMAP Projection of Training Data</p>
+        <button 
+          onClick={() => editorOpenFile({ path: 'preprocessing.py', lineNumber: 1 })}
+          className="mt-2 text-[9px] text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1 pointer-events-auto"
+        >
+          <span className="w-1 h-1 bg-indigo-400 rounded-full" />
+          VIEW PREPROCESSING
+        </button>
       </div>
       <Canvas camera={{ position: [0, 0, 15], fov: 45 }}>
         <color attach="background" args={['#0f172a']} />
