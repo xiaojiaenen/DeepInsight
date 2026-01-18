@@ -2,11 +2,11 @@ import React from 'react';
 import ReactFlow, { 
   Background, 
   Controls, 
-  Node, 
-  Edge,
   MarkerType,
   Handle,
-  Position
+  Position,
+  type Node, 
+  type Edge,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
