@@ -102,6 +102,8 @@ export const StructuredEditorView: React.FC<StructuredEditorViewProps> = ({
   };
 
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set(['root']));
+  const [editingPath, setEditingPath] = useState<{ path: string[], key: string, mode: 'rename' | 'add', type?: string } | null>(null);
+  const [editValue, setEditValue] = useState('');
 
   const toggleExpand = (path: string) => {
     const next = new Set(expandedPaths);
@@ -111,49 +113,56 @@ export const StructuredEditorView: React.FC<StructuredEditorViewProps> = ({
   };
 
   const handleRenameField = (path: string[], oldKey: string) => {
-    const newKey = window.prompt('请输入新的字段名:', oldKey);
-    if (!newKey || newKey === oldKey) return;
-    
-    const newData = JSON.parse(JSON.stringify(data));
-    let target = newData;
-    for (const p of path) target = target[p];
-    
-    if (target[newKey] !== undefined) {
-      alert('字段名已存在');
-      return;
-    }
-    
-    target[newKey] = target[oldKey];
-    delete target[oldKey];
-    handleUpdate(newData);
+    setEditingPath({ path, key: oldKey, mode: 'rename' });
+    setEditValue(oldKey);
   };
 
   const handleAddField = (path: string[], forcedType?: string) => {
-    const key = window.prompt('请输入字段名:');
-    if (!key) return;
+    setEditingPath({ path, key: '', mode: 'add', type: forcedType });
+    setEditValue('');
+  };
+
+  const submitEdit = () => {
+    if (!editingPath) return;
+    const { path, key: oldKey, mode, type: forcedType } = editingPath;
+    const newKey = editValue.trim();
     
+    if (!newKey) {
+      setEditingPath(null);
+      return;
+    }
+
     const newData = JSON.parse(JSON.stringify(data));
     let target = newData;
     for (const p of path) target = target[p];
-    
-    if (target[key] !== undefined) {
-      alert('字段已存在');
-      return;
-    }
-    
-    let type = forcedType;
-    if (!type) {
-      type = window.prompt('请输入类型 (string, number, boolean, object, array):', 'string') || 'string';
+
+    if (mode === 'rename') {
+      if (newKey === oldKey) {
+        setEditingPath(null);
+        return;
+      }
+      if (target[newKey] !== undefined) {
+        setEditingPath(null); // Simple exit for now, could add error state
+        return;
+      }
+      target[newKey] = target[oldKey];
+      delete target[oldKey];
+    } else {
+      if (target[newKey] !== undefined) {
+        setEditingPath(null);
+        return;
+      }
+      let type = forcedType || 'string';
+      let defaultValue: any = "";
+      if (type === 'number') defaultValue = 0;
+      else if (type === 'boolean') defaultValue = false;
+      else if (type === 'object') defaultValue = {};
+      else if (type === 'array') defaultValue = [];
+      target[newKey] = defaultValue;
     }
 
-    let defaultValue: any = "";
-    if (type === 'number') defaultValue = 0;
-    else if (type === 'boolean') defaultValue = false;
-    else if (type === 'object') defaultValue = {};
-    else if (type === 'array') defaultValue = [];
-    
-    target[key] = defaultValue;
     handleUpdate(newData);
+    setEditingPath(null);
   };
 
   const handleMoveItem = (path: string[], key: string, direction: 'up' | 'down') => {
@@ -265,7 +274,7 @@ export const StructuredEditorView: React.FC<StructuredEditorViewProps> = ({
             <div className="flex items-center gap-2 text-xs font-bold text-slate-600 uppercase tracking-tight">
               {isExpanded ? <ChevronDown className="w-3 h-3 text-slate-400" /> : <ChevronRight className="w-3 h-3 text-slate-400" />}
               <span 
-                className="hover:text-indigo-600 cursor-pointer transition-colors"
+                className="hover:text-emerald-600 cursor-pointer transition-colors"
                 onClick={(e) => {
                   if (path.length > 0) {
                     e.stopPropagation();
@@ -292,7 +301,7 @@ export const StructuredEditorView: React.FC<StructuredEditorViewProps> = ({
                 <Copy className="w-3 h-3" />
               </button>
               <button 
-                className="p-1 hover:bg-indigo-50 text-indigo-500 rounded transition-all"
+                className="p-1 hover:bg-emerald-50 text-emerald-500 rounded transition-all"
                 onClick={(e) => { 
                   e.stopPropagation(); 
                   if (isArray) {
@@ -335,7 +344,26 @@ export const StructuredEditorView: React.FC<StructuredEditorViewProps> = ({
           {isExpanded && (
             <div className="mt-1 space-y-1">
               {Object.entries(val).map(([k, v]) => renderValue(k, v, currentPath))}
-              {Object.keys(val).length === 0 && (
+              {editingPath?.mode === 'add' && editingPath.path.join('.') === currentPath.join('.') && (
+                <div className="flex items-center gap-3 py-1.5 px-2">
+                  <div className="w-32 flex items-center gap-1.5 shrink-0 overflow-hidden">
+                    <div className="w-1 h-1 bg-emerald-500 rounded-full shrink-0" />
+                    <input
+                      autoFocus
+                      placeholder="新字段名..."
+                      className="bg-white border border-emerald-500 rounded px-1 text-xs outline-none w-full"
+                      value={editValue}
+                      onChange={e => setEditValue(e.target.value)}
+                      onBlur={submitEdit}
+                      onKeyDown={e => e.key === 'Enter' && submitEdit()}
+                    />
+                  </div>
+                  <div className="text-[10px] text-slate-400 italic">
+                    {editingPath.type || 'string'}
+                  </div>
+                </div>
+              )}
+              {Object.keys(val).length === 0 && (!editingPath || editingPath.mode !== 'add' || editingPath.path.join('.') !== currentPath.join('.')) && (
                 <div className="text-[10px] text-slate-400 italic py-1">
                   {isArray ? '空数组' : '空对象'}
                 </div>
@@ -354,13 +382,24 @@ export const StructuredEditorView: React.FC<StructuredEditorViewProps> = ({
       >
         <div className="w-32 flex items-center gap-1.5 shrink-0 overflow-hidden">
           <div className="w-1 h-1 bg-slate-300 rounded-full shrink-0" />
-          <label 
-            className="text-xs text-slate-500 truncate font-medium cursor-pointer hover:text-indigo-600 transition-colors" 
-            title={key}
-            onClick={() => !Array.isArray(data) && handleRenameField(path, key)}
-          >
-            {Array.isArray(data) && path.length === 0 ? `[${key}]` : key}
-          </label>
+          {editingPath?.mode === 'rename' && editingPath.path.join('.') === path.join('.') && editingPath.key === key ? (
+            <input
+              autoFocus
+              className="bg-white border border-emerald-500 rounded px-1 text-xs outline-none w-full"
+              value={editValue}
+              onChange={e => setEditValue(e.target.value)}
+              onBlur={submitEdit}
+              onKeyDown={e => e.key === 'Enter' && submitEdit()}
+            />
+          ) : (
+            <label 
+              className="text-xs text-slate-500 truncate font-medium cursor-pointer hover:text-emerald-600 transition-colors" 
+              title={key}
+              onClick={() => !Array.isArray(data) && handleRenameField(path, key)}
+            >
+              {Array.isArray(data) && path.length === 0 ? `[${key}]` : key}
+            </label>
+          )}
         </div>
         
         <div className="flex-1 flex items-center gap-2">
@@ -374,8 +413,8 @@ export const StructuredEditorView: React.FC<StructuredEditorViewProps> = ({
                 handleUpdate(newData);
               }}
               className={cn(
-                "w-7 h-4 rounded-full transition-all relative outline-none ring-offset-2 focus:ring-2 focus:ring-indigo-500/20",
-                val ? "bg-indigo-500" : "bg-slate-200"
+                "w-7 h-4 rounded-full transition-all relative outline-none ring-offset-2 focus:ring-2 focus:ring-emerald-500/20",
+                val ? "bg-emerald-500" : "bg-slate-200"
               )}
             >
               <div className={cn(
@@ -386,7 +425,7 @@ export const StructuredEditorView: React.FC<StructuredEditorViewProps> = ({
           ) : typeof val === 'number' ? (
             <input 
               type="number"
-              className="flex-1 max-w-[120px] bg-white border border-slate-200 rounded px-2 py-1 text-xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 transition-all"
+              className="flex-1 max-w-[120px] bg-white border border-slate-200 rounded px-2 py-1 text-xs outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 transition-all"
               value={val}
               onChange={(e) => {
                 const newData = JSON.parse(JSON.stringify(data));
@@ -398,7 +437,7 @@ export const StructuredEditorView: React.FC<StructuredEditorViewProps> = ({
             />
           ) : (
             <input 
-              className="flex-1 bg-white border border-slate-200 rounded px-2 py-1 text-xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 transition-all"
+              className="flex-1 bg-white border border-slate-200 rounded px-2 py-1 text-xs outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 transition-all"
               value={val}
               onChange={(e) => {
                 const newData = JSON.parse(JSON.stringify(data));
@@ -422,7 +461,7 @@ export const StructuredEditorView: React.FC<StructuredEditorViewProps> = ({
             </button>
             {!Array.isArray(data) && (
               <button 
-                className="p-1 hover:bg-indigo-50 text-indigo-400 hover:text-indigo-600 rounded transition-all"
+                className="p-1 hover:bg-emerald-50 text-emerald-400 hover:text-emerald-600 rounded transition-all"
                 onClick={() => handleRenameField(path, key)}
                 title="重命名"
               >
@@ -459,7 +498,7 @@ export const StructuredEditorView: React.FC<StructuredEditorViewProps> = ({
           <button 
             className={cn(
               "flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-md transition-all uppercase tracking-wider",
-              viewMode === 'visual' ? "bg-white shadow-sm text-indigo-600 border border-slate-200" : "text-slate-500 hover:text-slate-700"
+              viewMode === 'visual' ? "bg-white shadow-sm text-emerald-600 border border-slate-200" : "text-slate-500 hover:text-slate-700"
             )}
             onClick={() => setViewMode('visual')}
           >
@@ -469,7 +508,7 @@ export const StructuredEditorView: React.FC<StructuredEditorViewProps> = ({
           <button 
             className={cn(
               "flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-md transition-all uppercase tracking-wider",
-              viewMode === 'code' ? "bg-white shadow-sm text-indigo-600 border border-slate-200" : "text-slate-500 hover:text-slate-700"
+              viewMode === 'code' ? "bg-white shadow-sm text-emerald-600 border border-slate-200" : "text-slate-500 hover:text-slate-700"
             )}
             onClick={() => setViewMode('code')}
           >
@@ -501,11 +540,11 @@ export const StructuredEditorView: React.FC<StructuredEditorViewProps> = ({
               
               <div className="flex items-center gap-3 flex-1 justify-end ml-8">
                 <div className="relative max-w-[240px] w-full group">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
                   <input 
                     type="text"
                     placeholder="搜索配置项..."
-                    className="w-full pl-8 pr-8 py-1.5 bg-white border border-slate-200 rounded-md text-[11px] outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 transition-all"
+                    className="w-full pl-8 pr-8 py-1.5 bg-white border border-slate-200 rounded-md text-[11px] outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 transition-all"
                     value={filter}
                     onChange={(e) => setFilter(e.target.value)}
                   />
@@ -521,7 +560,7 @@ export const StructuredEditorView: React.FC<StructuredEditorViewProps> = ({
                 
                 <button 
                   onClick={() => handleAddField([])}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-all uppercase tracking-wider shadow-sm shrink-0"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-all uppercase tracking-wider shadow-sm shrink-0"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   添加顶级字段
@@ -540,8 +579,8 @@ export const StructuredEditorView: React.FC<StructuredEditorViewProps> = ({
           </div>
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-center p-12">
-            <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mb-6 shadow-inner">
-              <Code2 className="w-8 h-8 text-indigo-500" />
+            <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mb-6 shadow-inner">
+              <Code2 className="w-8 h-8 text-emerald-500" />
             </div>
             <h3 className="text-base font-bold text-slate-900 mb-2">源码模式已激活</h3>
             <p className="text-sm text-slate-500 max-w-sm leading-relaxed">

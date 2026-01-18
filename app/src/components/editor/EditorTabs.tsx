@@ -13,7 +13,7 @@ interface EditorTabsProps {
 const FileIcon: React.FC<{ name: string; className?: string }> = ({ name, className }) => {
   const ext = name.split('.').pop()?.toLowerCase();
   if (['py'].includes(ext || '')) {
-    return <FileCode className={cn(className, "text-indigo-500")} />;
+    return <FileCode className={cn(className, "text-emerald-500")} />;
   }
   if (['js', 'ts', 'tsx', 'jsx'].includes(ext || '')) {
     return <FileCode className={cn(className, "text-amber-500")} />;
@@ -86,7 +86,7 @@ export const EditorTabs: React.FC<EditorTabsProps> = ({
               onContextMenu={(e) => handleContextMenu(e, path)}
               title={path}
             >
-              {isActive && <div className="absolute top-0 left-0 right-0 h-[2px] bg-indigo-500 z-10" />}
+              {isActive && <div className="absolute top-0 left-0 right-0 h-[2px] bg-emerald-500 z-10" />}
               {!isActive && <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-slate-200" />}
               
               <FileIcon name={name} className="w-3.5 h-3.5 shrink-0 opacity-80" />

@@ -7,6 +7,9 @@ import tempfile
 from pathlib import Path, PurePosixPath
 from typing import Awaitable, Callable, Optional
 
+# DeepInsight SDK path to be added to PYTHONPATH
+SDK_ROOT = Path(__file__).parent.parent.parent.resolve()
+
 
 async def _read_stream_lines(
     stream: asyncio.StreamReader,
@@ -29,6 +32,7 @@ async def execute_python(
     env = dict(os.environ)
     env["PYTHONUTF8"] = "1"
     env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONPATH"] = str(SDK_ROOT) + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
 
     proc = await asyncio.create_subprocess_exec(
         sys.executable,
@@ -104,6 +108,7 @@ async def execute_python_project(
     on_stdout: Callable[[str], Awaitable[None]],
     on_stderr: Callable[[str], Awaitable[None]],
     cancel_event: asyncio.Event | None = None,
+    python_exe: str | None = None,
 ) -> tuple[Optional[int], bool, bool]:
     entry_norm = _validate_rel_posix_path(entry)
     file_map: dict[str, str] = {}
@@ -126,7 +131,7 @@ async def execute_python_project(
             target.write_text(content, encoding="utf-8")
 
         cwd = str(root)
-        env["PYTHONPATH"] = cwd + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
+        env["PYTHONPATH"] = cwd + os.pathsep + str(SDK_ROOT) + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
 
         entry_path = str(root / Path(entry_norm))
 
@@ -143,8 +148,10 @@ async def execute_python_project(
         async def mapped_stderr(line: str) -> None:
             await on_stderr(_map_trace_path(line))
 
+        actual_python = python_exe if python_exe else sys.executable
+
         proc = await asyncio.create_subprocess_exec(
-            sys.executable,
+            actual_python,
             "-X",
             "utf8",
             "-u",
@@ -208,6 +215,7 @@ async def execute_python_workspace(
     on_stdout: Callable[[str], Awaitable[None]],
     on_stderr: Callable[[str], Awaitable[None]],
     cancel_event: asyncio.Event | None = None,
+    python_exe: str | None = None,
 ) -> tuple[Optional[int], bool, bool]:
     root = Path(workspace_root).resolve()
     if not root.exists() or not root.is_dir():
@@ -233,24 +241,29 @@ async def execute_python_workspace(
     env = dict(os.environ)
     env["PYTHONUTF8"] = "1"
     env["PYTHONIOENCODING"] = "utf-8"
-    env["PYTHONPATH"] = str(root) + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
+    env["PYTHONPATH"] = str(root) + os.pathsep + str(SDK_ROOT) + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
 
-    python_exe = sys.executable
-    venv_dir = root / ".venv"
-    if os.name == "nt":
-        candidate = venv_dir / "Scripts" / "python.exe"
+    if python_exe:
+        # User specified interpreter
+        actual_python = python_exe
     else:
-        candidate = venv_dir / "bin" / "python"
-    if candidate.exists():
-        python_exe = str(candidate)
-        env["VIRTUAL_ENV"] = str(venv_dir)
+        # Auto-detect venv
+        actual_python = sys.executable
+        venv_dir = root / ".venv"
         if os.name == "nt":
-            env["PATH"] = str(venv_dir / "Scripts") + os.pathsep + env.get("PATH", "")
+            candidate = venv_dir / "Scripts" / "python.exe"
         else:
-            env["PATH"] = str(venv_dir / "bin") + os.pathsep + env.get("PATH", "")
+            candidate = venv_dir / "bin" / "python"
+        if candidate.exists():
+            actual_python = str(candidate)
+            env["VIRTUAL_ENV"] = str(venv_dir)
+            if os.name == "nt":
+                env["PATH"] = str(venv_dir / "Scripts") + os.pathsep + env.get("PATH", "")
+            else:
+                env["PATH"] = str(venv_dir / "bin") + os.pathsep + env.get("PATH", "")
 
     proc = await asyncio.create_subprocess_exec(
-        python_exe,
+        actual_python,
         "-X",
         "utf8",
         "-u",

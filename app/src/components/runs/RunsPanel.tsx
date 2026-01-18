@@ -85,7 +85,7 @@ export const RunsPanel: React.FC<RunsPanelProps> = ({ embedded }) => {
                             key={p.name}
                             className="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 tabular-nums"
                           >
-                            {p.name}={p.value.toFixed(4)}@{p.step}
+                            {p.name}={typeof p.value === 'number' ? p.value.toFixed(4) : (typeof p.value === 'string' && p.value.length > 20 ? 'data...' : String(p.value))}@{p.step}
                           </span>
                         ))}
                       </div>
@@ -146,7 +146,11 @@ export const RunsPanel: React.FC<RunsPanelProps> = ({ embedded }) => {
                             <div key={name} className="flex items-center justify-between gap-2">
                               <div className="text-sm text-slate-800">{name}</div>
                               <div className="text-xs text-slate-600 tabular-nums">
-                                {last ? `${last.value.toFixed(6)} @ step ${last.step}` : '-'}
+                                {last ? (
+                                  typeof last.value === 'number' 
+                                    ? `${last.value.toFixed(6)} @ step ${last.step}` 
+                                    : (typeof last.value === 'string' && last.value.length > 50 ? 'Complex Data' : JSON.stringify(last.value)) + ` @ step ${last.step}`
+                                ) : '-'}
                               </div>
                             </div>
                           )

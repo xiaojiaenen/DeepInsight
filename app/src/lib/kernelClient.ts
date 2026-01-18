@@ -15,6 +15,10 @@ export type KernelMessage =
         memory_total_mb: number
         temperature_c: number
       }>
+      cpu?: {
+        utilization: number
+        temp_c?: number
+      }
       error?: string | null
     }
   | {
@@ -24,8 +28,52 @@ export type KernelMessage =
       likely_location?: string | null
       suggestions?: string[]
     }
-  | { type: 'done'; run_id: string; exit_code: number | null; timed_out: boolean; cancelled: boolean }
+  | {
+      type: 'done'
+      run_id: string
+      exit_code: number | null
+      timed_out: boolean
+      cancelled: boolean
+    }
   | { type: 'error'; message: string; run_id?: string | null }
+  | {
+      type: 'system_info'
+      data: {
+        os: {
+          platform: string
+          release: string
+          version: string
+          architecture: string
+          hostname: string
+        }
+        cpu: {
+          brand: string
+          cores_physical: number
+          cores_logical: number
+          freq_mhz: number
+        }
+        memory: {
+          total_gb: number
+          available_gb: number
+        }
+        network: {
+          ip: string
+        }
+        gpus: Array<{
+          index: number
+          name: string
+          utilization_gpu: number
+          memory_used_mb: number
+          memory_total_mb: number
+          temperature_c: number
+        }>
+        python_envs: Array<{
+          type: 'conda' | 'uv' | 'system' | 'venv'
+          path: string
+          name: string
+        }>
+      }
+    }
 
 type KernelClientOptions = {
   url?: string
@@ -34,7 +82,12 @@ type KernelClientOptions = {
 }
 
 export type KernelProjectFile = { path: string; content: string }
-export type KernelWorkspaceExec = { workspace_root: string; entry: string; timeout_s?: number }
+export type KernelWorkspaceExec = { 
+  workspace_root: string; 
+  entry: string; 
+  timeout_s?: number;
+  python_exe?: string | null;
+}
 
 export class KernelClient {
   private ws: WebSocket | null = null
@@ -97,12 +150,16 @@ export class KernelClient {
     this.send({ type: 'exec', files, entry, timeout_s })
   }
 
-  execWorkspace(workspace_root: string, entry: string, timeout_s = 30) {
-    this.send({ type: 'exec', workspace_root, entry, timeout_s })
+  execWorkspace(workspace_root: string, entry: string, timeout_s = 30, python_exe?: string | null) {
+    this.send({ type: 'exec', workspace_root, entry, timeout_s, python_exe })
   }
 
   cancel(run_id: string) {
     this.send({ type: 'cancel', run_id })
+  }
+
+  requestSystemInfo() {
+    this.send({ type: 'request_system_info' })
   }
 
   private send(payload: unknown) {

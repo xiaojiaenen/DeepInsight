@@ -28,11 +28,11 @@ export const NotesPanel: React.FC = () => {
       {/* 头部 */}
       <div className="h-10 px-3 flex items-center justify-between border-b border-slate-200 bg-slate-50/50">
         <div className="flex items-center gap-2">
-          <StickyNote className="w-4 h-4 text-indigo-500" />
+          <StickyNote className="w-4 h-4 text-emerald-500" />
           <span className="text-xs font-semibold text-slate-700">全局笔记</span>
         </div>
         <button 
-          className="p-1 rounded hover:bg-white border border-transparent hover:border-slate-200 transition-all text-slate-500 hover:text-indigo-600"
+          className="p-1 rounded hover:bg-white border border-transparent hover:border-slate-200 transition-all text-slate-500 hover:text-emerald-600"
           onClick={() => setIsCreating(true)}
           title="新建笔记"
         >
@@ -45,7 +45,7 @@ export const NotesPanel: React.FC = () => {
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
           <input 
-            className="w-full text-xs pl-7 pr-2 py-1.5 rounded-md border border-slate-200 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 transition-all"
+            className="w-full text-xs pl-7 pr-2 py-1.5 rounded-md border border-slate-200 outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-100 transition-all"
             placeholder="搜索笔记..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -55,10 +55,10 @@ export const NotesPanel: React.FC = () => {
 
       {/* 新建笔记输入框 */}
       {isCreating && (
-        <div className="p-2 border-b border-indigo-100 bg-indigo-50/30">
+        <div className="p-2 border-b border-emerald-100 bg-emerald-50/30">
           <input
             autoFocus
-            className="w-full text-xs px-2 py-1.5 rounded border border-indigo-200 outline-none shadow-sm"
+            className="w-full text-xs px-2 py-1.5 rounded border border-emerald-200 outline-none shadow-sm"
             placeholder="笔记名称..."
             value={newNoteName}
             onChange={(e) => setNewNoteName(e.target.value)}
@@ -69,7 +69,7 @@ export const NotesPanel: React.FC = () => {
           />
           <div className="flex justify-end gap-1 mt-2">
             <button 
-              className="px-2 py-1 text-[10px] rounded bg-indigo-600 text-white hover:bg-indigo-700"
+              className="px-2 py-1 text-[10px] rounded bg-emerald-600 text-white hover:bg-emerald-700"
               onClick={() => void handleCreate()}
             >
               创建
@@ -93,13 +93,13 @@ export const NotesPanel: React.FC = () => {
                 key={note.id}
                 className={`group flex items-center justify-between p-2 rounded-md cursor-pointer transition-colors ${
                   activeNoteId === note.id 
-                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' 
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
                     : 'hover:bg-slate-50 text-slate-600 border border-transparent'
                 }`}
                 onClick={() => void openNote(note.id)}
               >
                 <div className="flex items-center gap-2 overflow-hidden">
-                  <FileText className={`w-3.5 h-3.5 shrink-0 ${activeNoteId === note.id ? 'text-indigo-500' : 'text-slate-400'}`} />
+                  <FileText className={`w-3.5 h-3.5 shrink-0 ${activeNoteId === note.id ? 'text-emerald-500' : 'text-slate-400'}`} />
                   <div className="flex flex-col min-w-0">
                     <span className="text-xs font-medium truncate">{note.name.replace('.md', '')}</span>
                     <div className="flex items-center gap-1 text-[10px] opacity-60">

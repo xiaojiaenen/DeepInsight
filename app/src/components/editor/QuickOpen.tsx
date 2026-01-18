@@ -97,14 +97,14 @@ export const QuickOpen: React.FC<QuickOpenProps> = ({ onClose }) => {
                 key={file}
                 className={`
                   flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors
-                  ${index === selectedIndex ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-600'}
+                  ${index === selectedIndex ? 'bg-emerald-50 text-emerald-700' : 'hover:bg-slate-50 text-slate-600'}
                 `}
                 onClick={() => {
                   openFile(file);
                   onClose();
                 }}
               >
-                <FileCode className={`w-4 h-4 ${index === selectedIndex ? 'text-indigo-500' : 'text-slate-400'}`} />
+                <FileCode className={`w-4 h-4 ${index === selectedIndex ? 'text-emerald-500' : 'text-slate-400'}`} />
                 <div className="flex flex-col min-w-0">
                   <span className="text-sm font-medium truncate">{file.split('/').pop()}</span>
                   <span className="text-[10px] opacity-60 truncate">{file}</span>

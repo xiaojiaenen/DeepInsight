@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('windowControls', {
 })
 
 contextBridge.exposeInMainWorld('workspace', {
+  openFile: () => ipcRenderer.invoke('workspace:openFile'),
   openFolder: () => ipcRenderer.invoke('workspace:openFolder'),
   list: (root: string, dir: string) => ipcRenderer.invoke('workspace:list', { root, dir }),
   readFile: (root: string, filePath: string) => ipcRenderer.invoke('workspace:readFile', { root, path: filePath }),

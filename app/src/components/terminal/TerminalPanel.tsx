@@ -16,7 +16,7 @@ import {
 import { subscribeTerminalClear, subscribeTerminalWrite, terminalClear } from '../../lib/terminalBus';
 import { RunsPanel } from '../runs/RunsPanel';
 import { clearRuns } from '../../features/runs/runsStore';
-import { LinearRegressionLab } from '../labs/LinearRegressionLab';
+import { LabManager } from '../labs/LabManager';
 import { subscribeHw, type HwSnapshot } from '../../features/hw/hwStore';
 import { clearOomAnalysis, subscribeOom, type OomAnalysis } from '../../features/oom/oomStore';
 import { subscribeTraceLocation, clearTraceLocation, type TraceLocation } from '../../features/trace/traceStore';
@@ -34,52 +34,22 @@ interface TerminalInstance {
 }
 
 export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => {
-  const terminalRef = useRef<HTMLDivElement>(null)
-  const xtermRef = useRef<Terminal | null>(null)
-  const fitRef = useRef<FitAddon | null>(null)
+  const terminalContainersRef = useRef<Map<string, HTMLDivElement>>(new Map())
+  const terminalInstancesRef = useRef<Map<string, { term: Terminal, fit: FitAddon }>>(new Map())
   const [tab, setTab] = useState<Tab>('terminal')
   const [terminals, setTerminals] = useState<TerminalInstance[]>([
     { id: '1', name: 'bash' }
   ])
   const [activeTerminalId, setActiveTerminalId] = useState('1')
-
-  const addTerminal = () => {
-    const newId = String(Date.now())
-    setTerminals([...terminals, { id: newId, name: `bash ${terminals.length + 1}` }])
-    setActiveTerminalId(newId)
-  }
-
-  const removeTerminal = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation()
-    if (terminals.length === 1) return
-    const newTerminals = terminals.filter(t => t.id !== id)
-    setTerminals(newTerminals)
-    if (activeTerminalId === id) {
-      setActiveTerminalId(newTerminals[newTerminals.length - 1].id)
-    }
-  }
-
-  const [hw, setHw] = useState<HwSnapshot | null>(null)
+  
+  // Missing states from previous version
+  const [hw, setHw] = useState<HwSnapshot | null>(null);
   const [oom, setOom] = useState<OomAnalysis | null>(null);
   const [trace, setTrace] = useState<TraceLocation | null>(null);
-  const [markers, setMarkers] = useState<any[]>([]);
+  const [markers, setMarkers] = useState<any[]>([]); // Assuming markers are handled elsewhere or need definition
 
-  useEffect(() => {
-    if (tab === 'problems') {
-      const updateMarkers = () => {
-        if ((window as any).monaco) {
-          const allMarkers = (window as any).monaco.editor.getModelMarkers({});
-          setMarkers(allMarkers);
-        }
-      };
-      updateMarkers();
-      const interval = setInterval(updateMarkers, 2000);
-      return () => clearInterval(interval);
-    }
-  }, [tab]);
-
-  useEffect(() => {
-    if (!terminalRef.current) return;
+  const createTerminalInstance = (id: string) => {
+    if (terminalInstancesRef.current.has(id)) return terminalInstancesRef.current.get(id);
 
     const term = new Terminal({
       convertEol: true,
@@ -118,55 +88,83 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => 
 
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
-    fitRef.current = fitAddon;
+    
+    const instance = { term, fit: fitAddon };
+    terminalInstancesRef.current.set(id, instance);
+    return instance;
+  };
 
-    term.open(terminalRef.current);
-    let raf1 = 0;
-    let raf2 = 0;
-    raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => {
-        try {
-          fitAddon.fit();
-        } catch (e) {
-          void e
-        }
-      });
-    });
+  const addTerminal = () => {
+    const newId = String(Date.now())
+    setTerminals([...terminals, { id: newId, name: `bash ${terminals.length + 1}` }])
+    setActiveTerminalId(newId)
+  }
 
-    term.writeln('\x1b[1;34m➜\x1b[0m DeepInsight Kernel \x1b[32m● Online\x1b[0m');
-    term.writeln('\x1b[2mType "help" to learn more about commands.\x1b[0m');
-    term.write('\r\n$ ');
+  const removeTerminal = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    if (terminals.length === 1) return
+    
+    // Cleanup
+    const instance = terminalInstancesRef.current.get(id);
+    if (instance) {
+      instance.term.dispose();
+      terminalInstancesRef.current.delete(id);
+    }
+    terminalContainersRef.current.delete(id);
 
-    xtermRef.current = term;
+    const newTerminals = terminals.filter(t => t.id !== id)
+    setTerminals(newTerminals)
+    if (activeTerminalId === id) {
+      setActiveTerminalId(newTerminals[newTerminals.length - 1].id)
+    }
+  }
 
-    const resizeObserver = new ResizeObserver(() => {
-      try {
-        fitAddon.fit();
-      } catch (e) {
-        void e
+  // Handle terminal initialization and resizing
+  useEffect(() => {
+    terminals.forEach(t => {
+      const container = terminalContainersRef.current.get(t.id);
+      if (container && !terminalInstancesRef.current.get(t.id)?.term.element) {
+        const { term, fit } = createTerminalInstance(t.id)!;
+        term.open(container);
+        
+        term.writeln(`\x1b[1;34m➜\x1b[0m DeepInsight Terminal \x1b[32m[${t.name}]\x1b[0m`);
+        term.write('\r\n$ ');
+
+        setTimeout(() => {
+          try { fit.fit(); } catch (e) {}
+        }, 100);
       }
     });
-    resizeObserver.observe(terminalRef.current);
+  }, [terminals]);
 
-    const unsubscribeWrite = subscribeTerminalWrite((text) => {
-      term.write(text);
+  // Handle active terminal resize
+  useEffect(() => {
+    const instance = terminalInstancesRef.current.get(activeTerminalId);
+    if (instance && tab === 'terminal') {
+      setTimeout(() => {
+        try { instance.fit.fit(); } catch (e) {}
+      }, 50);
+    }
+  }, [activeTerminalId, tab]);
+
+  useEffect(() => {
+    const unsubWrite = subscribeTerminalWrite((payload) => {
+      const instance = terminalInstancesRef.current.get(activeTerminalId);
+      if (instance) {
+        instance.term.write(payload);
+      }
     });
-
-    const unsubscribeClear = subscribeTerminalClear(() => {
-      term.reset();
-      term.write('$ ');
+    const unsubClear = subscribeTerminalClear(() => {
+      const instance = terminalInstancesRef.current.get(activeTerminalId);
+      if (instance) {
+        instance.term.clear();
+      }
     });
-
     return () => {
-      cancelAnimationFrame(raf1);
-      cancelAnimationFrame(raf2);
-      unsubscribeWrite();
-      unsubscribeClear();
-      resizeObserver.disconnect();
-      term.dispose();
-      fitRef.current = null;
+      unsubWrite();
+      unsubClear();
     };
-  }, []);
+  }, [activeTerminalId]);
 
   useEffect(() => {
     return subscribeHw((s) => setHw(s));
@@ -181,15 +179,35 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => 
   }, []);
 
   useEffect(() => {
-    if (tab !== 'terminal') return;
-    const fitAddon = fitRef.current;
-    if (!fitAddon) return;
-    try {
-      fitAddon.fit();
-    } catch (e) {
-      void e
+    const updateMarkers = () => {
+      const monaco = (window as any).monaco;
+      if (monaco && monaco.editor) {
+        const markers = monaco.editor.getModelMarkers({});
+        setMarkers(markers);
+      }
+    };
+
+    updateMarkers();
+
+    if ((window as any).monaco && (window as any).monaco.editor) {
+      const editor = (window as any).monaco.editor;
+      if (typeof editor.onDidChangeMarkers === 'function') {
+        const disposable = editor.onDidChangeMarkers(() => {
+          updateMarkers();
+        });
+        return () => disposable.dispose();
+      }
     }
-  }, [tab]);
+    
+    // Fallback if monaco is not yet loaded
+    const interval = setInterval(() => {
+      if ((window as any).monaco) {
+        updateMarkers();
+        clearInterval(interval);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const gpu0 = hw?.gpus?.[0] ?? null;
   const gpuText = (() => {
@@ -247,7 +265,7 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => 
                 onClick={() => setActiveTerminalId(t.id)}
                 className={`
                   flex items-center gap-2 px-2 py-0.5 rounded cursor-pointer transition-all whitespace-nowrap
-                  ${activeTerminalId === t.id ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'text-slate-500 hover:bg-slate-100'}
+                  ${activeTerminalId === t.id ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'text-slate-500 hover:bg-slate-100'}
                 `}
               >
                 <TerminalIcon className="w-3 h-3" />
@@ -262,7 +280,7 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => 
             ))}
             <button 
               onClick={addTerminal}
-              className="p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-indigo-600 transition-colors"
+              className="p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-emerald-600 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
@@ -350,15 +368,21 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ pythonBadge }) => 
               ) : null}
             </div>
           ) : null}
-          <div className="flex-1 min-h-0 p-2 pl-3 overflow-hidden">
-            <div ref={terminalRef} className="w-full h-full" />
+          <div className="flex-1 min-h-0 p-2 pl-3 overflow-hidden relative">
+            {terminals.map(t => (
+              <div 
+                key={t.id} 
+                ref={el => { if (el) terminalContainersRef.current.set(t.id, el) }} 
+                className={`w-full h-full ${activeTerminalId === t.id ? 'block' : 'hidden'}`}
+              />
+            ))}
           </div>
         </div>
         <div className={`${tab === 'runs' ? 'block' : 'hidden'} h-full`}>
           <RunsPanel embedded />
         </div>
         <div className={`${tab === 'lab' ? 'block' : 'hidden'} h-full`}>
-          <LinearRegressionLab />
+          <LabManager />
         </div>
         <div className={`${tab === 'problems' ? 'block' : 'hidden'} h-full overflow-y-auto custom-scrollbar bg-white`}>
           {markers.length === 0 ? (

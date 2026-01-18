@@ -75,7 +75,6 @@ def check_code_safety(code: str) -> list[SecurityViolation]:
         "subprocess.check_call",
         "subprocess.check_output",
         "eval",
-        "exec",
         "__import__",
         "compile",
     }

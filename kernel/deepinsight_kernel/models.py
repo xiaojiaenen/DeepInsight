@@ -30,7 +30,7 @@ class WsMetric(TypedDict):
     type: Literal["metric"]
     run_id: str
     name: str
-    value: float
+    value: Any
     step: int
 
 
@@ -89,4 +89,8 @@ class WsCancel(TypedDict, total=False):
     run_id: str
 
 
-WsClientMessage = Union[WsExec, WsCancel, dict[str, Any]]
+class WsRequestSystemInfo(TypedDict):
+    type: Literal["request_system_info"]
+
+
+WsClientMessage = Union[WsExec, WsCancel, WsRequestSystemInfo, dict[str, Any]]

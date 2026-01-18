@@ -37,7 +37,7 @@ export const GitDiffView: React.FC<GitDiffViewProps> = ({ path, onClose }) => {
     <div className="flex flex-col h-full bg-white">
       <div className="h-10 px-4 flex items-center justify-between border-b border-slate-200 bg-slate-50">
         <div className="flex items-center gap-2">
-          <FileDiff className="w-4 h-4 text-indigo-500" />
+          <FileDiff className="w-4 h-4 text-emerald-500" />
           <span className="text-xs font-medium text-slate-700 truncate max-w-[400px]">
             差异: {path}
           </span>
@@ -59,7 +59,7 @@ export const GitDiffView: React.FC<GitDiffViewProps> = ({ path, onClose }) => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto font-mono text-[12px] leading-relaxed p-4 selection:bg-indigo-100">
+      <div className="flex-1 overflow-auto font-mono text-[12px] leading-relaxed p-4 selection:bg-emerald-100">
         {loading ? (
           <div className="flex items-center justify-center h-full text-slate-400 italic">
             正在加载差异...

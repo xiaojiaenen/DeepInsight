@@ -226,12 +226,20 @@ async function runWorkspaceInstall(rootAbs: string) {
   const hasPyproject = await fileExists(path.join(rootAbs, 'pyproject.toml'))
   const hasRequirements = await fileExists(path.join(rootAbs, 'requirements.txt'))
 
-  if (!hasPyproject && !hasRequirements) {
-    throw new Error('未检测到 pyproject.toml 或 requirements.txt')
-  }
-
   emitWorkspaceInstallLog(`workspace: ${rootAbs}`)
-  emitWorkspaceInstallLog('开始安装依赖（uv）...')
+
+  // 检测硬件以决定安装策略
+  try {
+    const { execSync } = require('node:child_process')
+    const hasNvidia = execSync('nvidia-smi').toString().includes('NVIDIA')
+    if (hasNvidia) {
+      emitWorkspaceInstallLog('检测到 NVIDIA GPU，将尝试安装 CUDA 版本的 PyTorch...')
+    } else {
+      emitWorkspaceInstallLog('未检测到 GPU，将安装 CPU 版本的依赖...')
+    }
+  } catch (e) {
+    emitWorkspaceInstallLog('硬件检测跳过 (未找到 nvidia-smi)')
+  }
 
   if (!(await fileExists(path.join(rootAbs, '.venv')))) {
     emitWorkspaceInstallLog('创建虚拟环境：uv venv')
@@ -243,7 +251,7 @@ async function runWorkspaceInstall(rootAbs: string) {
   }
 
   if (hasPyproject) {
-    emitWorkspaceInstallLog('同步依赖：uv sync')
+    emitWorkspaceInstallLog('检测到 pyproject.toml，执行 uv sync...')
     await new Promise<void>((resolve, reject) => {
       const p = spawnWithLog('uv', ['sync'], rootAbs)
       p.on('error', reject)
@@ -252,11 +260,22 @@ async function runWorkspaceInstall(rootAbs: string) {
     return
   }
 
-  emitWorkspaceInstallLog('安装依赖：uv pip install -r requirements.txt')
+  if (hasRequirements) {
+    emitWorkspaceInstallLog('检测到 requirements.txt，执行 uv pip install...')
+    await new Promise<void>((resolve, reject) => {
+      const p = spawnWithLog('uv', ['pip', 'install', '-r', 'requirements.txt'], rootAbs)
+      p.on('error', reject)
+      p.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`uv pip install exited with code ${code}`))))
+    })
+    return
+  }
+
+  emitWorkspaceInstallLog('未检测到依赖文件，安装基础深度学习包 (torch, torchvision, numpy)...')
   await new Promise<void>((resolve, reject) => {
-    const p = spawnWithLog('uv', ['pip', 'install', '-r', 'requirements.txt'], rootAbs)
+    // 默认安装基础包
+    const p = spawnWithLog('uv', ['pip', 'install', 'torch', 'torchvision', 'numpy', 'matplotlib', 'pandas'], rootAbs)
     p.on('error', reject)
-    p.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`uv pip install exited with code ${code}`))))
+    p.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`uv pip install failed`))))
   })
 }
 
@@ -279,6 +298,20 @@ ipcMain.handle('workspace:installPythonDeps', async (_event, payload: { root: st
   } finally {
     workspaceInstallRunning = false
   }
+})
+
+ipcMain.handle('workspace:openFile', async () => {
+  const res = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [
+      { name: 'Python Executable', extensions: ['exe', ''] },
+      { name: 'All Files', extensions: ['*'] }
+    ]
+  })
+  if (res.canceled) return null
+  const path = res.filePaths[0]
+  if (!path) return null
+  return { path }
 })
 
 ipcMain.handle('workspace:openFolder', async () => {

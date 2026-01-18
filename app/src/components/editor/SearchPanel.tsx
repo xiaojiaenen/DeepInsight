@@ -111,11 +111,11 @@ export const SearchPanel: React.FC = () => {
 
       <div className="p-3 border-b border-slate-100">
         <div className="relative group">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
           <input 
             type="text"
             placeholder="搜索文本..."
-            className="w-full pl-8 pr-8 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded outline-none focus:ring-1 focus:ring-indigo-500/30 transition-all"
+            className="w-full pl-8 pr-8 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded outline-none focus:ring-1 focus:ring-emerald-500/30 transition-all"
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSearch()}
@@ -155,7 +155,7 @@ export const SearchPanel: React.FC = () => {
                 ) : (
                   <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
                 )}
-                <FileCode className="w-3.5 h-3.5 text-indigo-500" />
+                <FileCode className="w-3.5 h-3.5 text-emerald-500" />
                 <span className="flex-1 text-xs text-slate-700 font-medium truncate">
                   {result.path.split('/').pop()}
                 </span>
@@ -169,7 +169,7 @@ export const SearchPanel: React.FC = () => {
                   {result.matches.map((match, idx) => (
                     <div 
                       key={`${result.path}-${idx}`}
-                      className="pl-9 pr-3 py-1 hover:bg-indigo-50 cursor-pointer group/item flex flex-col"
+                      className="pl-9 pr-3 py-1 hover:bg-emerald-50 cursor-pointer group/item flex flex-col"
                       onClick={() => handleResultClick(result.path, match.lineNumber)}
                     >
                       <div className="flex items-center gap-2">

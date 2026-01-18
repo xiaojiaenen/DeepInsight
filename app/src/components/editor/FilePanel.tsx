@@ -128,7 +128,7 @@ export const FilePanel: React.FC<{ files: ProjectFile[]; activeId: string; onRun
     return (
       <div
         key={`file:${f.id}`}
-        className={`group rounded border flex items-center gap-2 transition-all ${active ? 'border-indigo-200 bg-indigo-50/50' : 'border-transparent hover:bg-white hover:border-slate-200'}`}
+        className={`group rounded border flex items-center gap-2 transition-all ${active ? 'border-emerald-200 bg-emerald-50/50' : 'border-transparent hover:bg-white hover:border-slate-200'}`}
         style={{ marginLeft: 8 + depth * 12 }}
         onContextMenu={(e) => {
           e.preventDefault()
@@ -144,7 +144,7 @@ export const FilePanel: React.FC<{ files: ProjectFile[]; activeId: string; onRun
       >
         {isRenaming ? (
           <input
-            className="flex-1 text-[11px] px-2 py-1 outline-none bg-white border border-indigo-300 rounded"
+            className="flex-1 text-[11px] px-2 py-1 outline-none bg-white border border-emerald-300 rounded"
             autoFocus
             value={renaming?.value ?? ''}
             onChange={(e) => setRenaming({ id: f.id, value: e.target.value })}
@@ -159,7 +159,7 @@ export const FilePanel: React.FC<{ files: ProjectFile[]; activeId: string; onRun
           />
         ) : (
           <button 
-            className={`flex-1 text-left text-[11px] truncate px-2 py-1 ${active ? 'text-indigo-700 font-medium' : 'text-slate-600'}`} 
+            className={`flex-1 text-left text-[11px] truncate px-2 py-1 ${active ? 'text-emerald-700 font-medium' : 'text-slate-600'}`} 
             onClick={() => setActiveFile(f.id)}
           >
             {n.name}
@@ -210,11 +210,11 @@ export const FilePanel: React.FC<{ files: ProjectFile[]; activeId: string; onRun
 
       <div className="p-2 border-b border-slate-200 bg-white/30">
         <div className="relative group">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
           <input 
             type="text"
             placeholder="搜索文件..."
-            className="w-full pl-7 pr-2 py-1.5 text-[11px] bg-white border border-slate-200 rounded-md outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 transition-all"
+            className="w-full pl-7 pr-2 py-1.5 text-[11px] bg-white border border-slate-200 rounded-md outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 transition-all"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
@@ -223,12 +223,12 @@ export const FilePanel: React.FC<{ files: ProjectFile[]; activeId: string; onRun
 
       {adding ? (
         <div className="p-3 border-b border-slate-200 bg-white shadow-sm">
-          <div className="text-[10px] font-bold text-indigo-600 mb-2 uppercase tracking-tight">
+          <div className="text-[10px] font-bold text-emerald-600 mb-2 uppercase tracking-tight">
             {adding.mode === 'file' ? '新建文件' : '新建目录'}
           </div>
           <div className="flex flex-col gap-2">
             <input
-              className="w-full text-[11px] px-2 py-1.5 rounded border border-slate-200 outline-none focus:border-indigo-400"
+              className="w-full text-[11px] px-2 py-1.5 rounded border border-slate-200 outline-none focus:border-emerald-400"
               autoFocus
               placeholder={adding.mode === 'file' ? "例如: src/train.py" : "例如: src/models"}
               value={adding.value}
@@ -249,7 +249,7 @@ export const FilePanel: React.FC<{ files: ProjectFile[]; activeId: string; onRun
                 取消
               </button>
               <button
-                className="text-[11px] px-2.5 py-1 rounded bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-200"
+                className="text-[11px] px-2.5 py-1 rounded bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors shadow-sm shadow-emerald-200"
                 onClick={() => {
                   const v = adding.value.trim()
                   if (!v) return

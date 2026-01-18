@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { editorInsertText } from '../../lib/editorBus'
 import { subscribeRuns } from '../../features/runs/runsStore'
 import type { RunRecord } from '../../features/runs/runTypes'
+import { Play, CheckCircle2, Circle, Lightbulb, Code2 } from 'lucide-react'
+import { motion } from 'framer-motion'
 
 type LabStep = {
   id: string
@@ -36,12 +38,12 @@ const lossLowEnough = (run: RunRecord | null) => {
   return last < 0.02
 }
 
-const labCode = `# 练习：用梯度下降拟合一元线性回归，并记录 loss 指标（MLOps 风格）
+const labCode = `# 练习：用梯度下降拟合一元线性回归，并记录 loss 指标
 # 目标：
 # 1) 训练过程中输出 __METRIC__ : {"name":"loss","value":<float>,"step":<int>}
-# 2) loss 能明显下降，并最终 < 0.02
+# 2) 让 loss 明显下降，并最终 < 0.02
 #
-# 提示：你可以只改 TODO 部分
+# 提示：你需要补全 TODO 部分的梯度计算逻辑
 
 import numpy as np
 
@@ -63,15 +65,16 @@ for step in range(steps + 1):
     loss = float(np.mean(err ** 2))
 
     if step % 10 == 0:
-        print(f'__METRIC__ : {"name":"loss","value":{loss},"step":{step}}')
+        # 使用标准的 __METRIC__ 格式进行数据追踪
+        print(f'__METRIC__ : {{"name":"loss","value":{loss},"step":{step}}}')
 
-    # TODO: 实现梯度下降更新（dw, db）
-    # dw = ...
-    # db = ...
+    # TODO: 实现梯度下降更新 (dw, db)
+    # dw = np.mean(err * x) * 2
+    # db = np.mean(err) * 2
     # w -= lr * dw
     # b -= lr * db
 
-print("final", "w=", float(w), "b=", float(b))
+print(f"训练完成: w={float(w):.4f}, b={float(b):.4f}")
 `
 
 export const LinearRegressionLab: React.FC = () => {
@@ -87,43 +90,95 @@ export const LinearRegressionLab: React.FC = () => {
     const s2 = lossImproves(run)
     const s3 = lossLowEnough(run)
     return [
-      { id: 'metric', title: '输出 loss 指标（__METRIC__）', done: s1, detail: s1 ? '已检测到 loss 指标' : '运行代码并输出 loss' },
-      { id: 'improve', title: '让 loss 下降（至少 30%）', done: s2, detail: s2 ? 'loss 已明显下降' : '实现梯度下降更新' },
-      { id: 'target', title: '达到目标 loss < 0.02', done: s3, detail: s3 ? '达标' : '调参/修正梯度公式' },
+      { id: 'metric', title: '输出 Loss 指标 (__METRIC__)', done: s1, detail: s1 ? '已成功捕获训练指标' : '请运行代码并确保输出符合格式要求' },
+      { id: 'improve', title: '实现梯度下降 (Loss 下降 >30%)', done: s2, detail: s2 ? '梯度更新逻辑有效' : '请在 TODO 处补全权重更新公式' },
+      { id: 'target', title: '模型收敛 (Loss < 0.02)', done: s3, detail: s3 ? '模型精度达标' : '如果未达标，请检查学习率或迭代次数' },
     ]
   }, [run])
 
   const doneCount = steps.filter((s) => s.done).length
 
   return (
-    <div className="h-full w-full bg-white">
-      <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
-        <div>
-          <div className="text-sm font-medium text-slate-900">Lab：线性回归 + 指标追踪</div>
-          <div className="text-xs text-slate-500">完成度：{doneCount}/{steps.length}（基于最近一次 Run 的指标）</div>
+    <div className="h-full w-full bg-slate-950 flex flex-col">
+      <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50 backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+            <Code2 className="w-4 h-4 text-emerald-400" />
+          </div>
+          <div>
+            <div className="text-sm font-bold text-slate-100">实验室：线性回归与指标追踪</div>
+            <div className="flex items-center gap-2 mt-1">
+              <div className="h-1.5 w-24 bg-slate-800 rounded-full overflow-hidden">
+                <motion.div 
+                  className="h-full bg-emerald-500"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(doneCount / steps.length) * 100}%` }}
+                />
+              </div>
+              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                完成进度: {doneCount}/{steps.length}
+              </span>
+            </div>
+          </div>
         </div>
         <button
-          className="text-xs bg-slate-900 text-white hover:bg-slate-800 px-2 py-1 rounded"
+          className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
           onClick={() => editorInsertText({ text: `\n${labCode}\n`, ensureNewline: true, mode: 'end' })}
         >
+          <Play className="w-3 h-3 fill-current" />
           插入练习代码
         </button>
       </div>
 
-      <div className="p-4 space-y-3">
-        {steps.map((s) => (
-          <div key={s.id} className={`rounded border px-3 py-2 ${s.done ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-slate-900">{s.title}</div>
-              <div className={`text-xs ${s.done ? 'text-emerald-700' : 'text-slate-500'}`}>{s.done ? '已完成' : '未完成'}</div>
-            </div>
-            {s.detail ? <div className="mt-1 text-xs text-slate-600">{s.detail}</div> : null}
-          </div>
-        ))}
+      <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar">
+        <div className="grid gap-3">
+          {steps.map((s, idx) => (
+            <motion.div 
+              key={s.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.1 }}
+              className={`
+                group relative overflow-hidden rounded-xl border p-4 transition-all
+                ${s.done 
+                  ? 'border-emerald-500/30 bg-emerald-500/5' 
+                  : 'border-slate-800 bg-slate-900/30 hover:border-slate-700'}
+              `}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex gap-3">
+                  <div className={`mt-0.5 ${s.done ? 'text-emerald-400' : 'text-slate-600'}`}>
+                    {s.done ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
+                  </div>
+                  <div>
+                    <h4 className={`text-sm font-bold ${s.done ? 'text-emerald-100' : 'text-slate-300'}`}>
+                      {s.title}
+                    </h4>
+                    {s.detail && (
+                      <p className={`mt-1 text-xs ${s.done ? 'text-emerald-400/70' : 'text-slate-500'}`}>
+                        {s.detail}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {s.done && (
+                  <span className="text-[10px] font-black uppercase text-emerald-500/40 tracking-widest">Completed</span>
+                )}
+              </div>
+              {/* 装饰性背景线 */}
+              <div className={`absolute bottom-0 right-0 w-24 h-24 -mr-8 -mb-8 opacity-5 rounded-full ${s.done ? 'bg-emerald-500' : 'bg-slate-500'}`} />
+            </motion.div>
+          ))}
+        </div>
 
-        <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
-          <div className="text-xs text-slate-600">
-            提示：切到 Runs 标签页可以查看 loss 曲线（按 step 记录）。如果你没有看到指标，检查输出格式是否完全匹配：__METRIC__ : &lt;JSON&gt;
+        <div className="p-4 rounded-xl border border-emerald-500/10 bg-emerald-500/5 flex gap-3">
+          <Lightbulb className="w-4 h-4 text-emerald-400 shrink-0" />
+          <div className="space-y-2">
+            <h5 className="text-xs font-bold text-emerald-300 uppercase tracking-wider">专家提示</h5>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              切换到 <span className="text-emerald-400 font-bold">"运行 (Runs)"</span> 标签页可实时观察 Loss 曲线。如果指标未刷新，请确保输出格式完全符合：
+              <code className="mx-1 px-1.5 py-0.5 bg-slate-800 rounded text-emerald-400 font-mono">__METRIC__ : {"{...}"}</code>
+            </p>
           </div>
         </div>
       </div>

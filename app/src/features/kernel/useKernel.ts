@@ -3,16 +3,22 @@ import { KernelClient, type KernelMessage, type KernelProjectFile } from '../../
 import { terminalClear, terminalWrite, terminalWriteLine } from '../../lib/terminalBus'
 import { addMetric, finishRun, startRun } from '../runs/runsStore'
 import { setHwSnapshot } from '../hw/hwStore'
+import { setSystemInfo } from '../system/systemStore'
 import { setOomAnalysis } from '../oom/oomStore'
 import { clearTraceLocation, setTraceLocation } from '../trace/traceStore'
+import { getWorkspaceState } from '../workspace/workspaceStore'
+
+export type KernelStatus = 'connecting' | 'open' | 'closed' | 'error'
 
 type UseKernelResult = {
   pythonBadge: string
   isRunning: boolean
+  status: KernelStatus
   run: (code: string) => void
   runProject: (files: KernelProjectFile[], entry: string) => void
   runWorkspace: (workspaceRoot: string, entry: string) => void
   stop: () => void
+  requestSystemInfo: () => void
 }
 
 const DEFAULT_TIMEOUT_S = 30
@@ -20,15 +26,21 @@ const DEFAULT_TIMEOUT_S = 30
 export function useKernel(): UseKernelResult {
   const [pythonBadge, setPythonBadge] = useState('')
   const [isRunning, setIsRunning] = useState(false)
+  const [status, setStatus] = useState<KernelStatus>('closed')
   const clientRef = useRef<KernelClient | null>(null)
   const runIdRef = useRef<string | null>(null)
   const lastCodeRef = useRef<string | undefined>(undefined)
+
+  const requestSystemInfo = () => {
+    clientRef.current?.requestSystemInfo()
+  }
 
   useEffect(() => {
     const normalizeForTerminal = (s: string) => s.replace(/\r?\n/g, '\r\n')
 
     const client = new KernelClient({
       onStatus: (s) => {
+        setStatus(s)
         if (s === 'connecting') terminalWriteLine('正在连接 Kernel...')
         if (s === 'open') terminalWriteLine('Kernel 已连接。')
         if (s === 'closed') terminalWriteLine('Kernel 连接已断开。')
@@ -73,7 +85,11 @@ export function useKernel(): UseKernelResult {
           return
         }
         if (msg.type === 'hw') {
-          setHwSnapshot({ ts_ms: msg.ts_ms, gpus: msg.gpus, error: msg.error })
+          setHwSnapshot({ ts_ms: msg.ts_ms, gpus: msg.gpus, cpu: msg.cpu, error: msg.error })
+          return
+        }
+        if (msg.type === 'system_info') {
+          setSystemInfo(msg.data)
           return
         }
         if (msg.type === 'oom') {
@@ -145,7 +161,8 @@ export function useKernel(): UseKernelResult {
     terminalWriteLine('DeepInsight 运行器')
     terminalWriteLine('--------------------------------')
     lastCodeRef.current = undefined
-    clientRef.current?.execWorkspace(workspaceRoot, entry, DEFAULT_TIMEOUT_S)
+    const { customPythonPath } = getWorkspaceState()
+    clientRef.current?.execWorkspace(workspaceRoot, entry, DEFAULT_TIMEOUT_S, customPythonPath)
   }
 
   const stop = () => {
@@ -154,5 +171,14 @@ export function useKernel(): UseKernelResult {
     clientRef.current?.cancel(runId)
   }
 
-  return { pythonBadge, isRunning, run, runProject, runWorkspace, stop }
+  return {
+    pythonBadge,
+    isRunning,
+    status,
+    run,
+    runProject,
+    runWorkspace,
+    stop,
+    requestSystemInfo,
+  }
 }

@@ -9,9 +9,11 @@ export type WorkspaceState = {
   openFiles: Record<string, { content: string; dirty: boolean }>
   openPathList: string[]
   pythonEnv: { hasPyproject: boolean; hasRequirements: boolean; hasVenv: boolean; installer: 'uv-sync' | 'uv-pip' | 'none' } | null
+  customPythonPath: string | null
   installStatus: { status: 'idle' | 'running' | 'done' | 'error'; message?: string } | null
   gitStatus: { branch: string; changes: number; files: Array<{ path: string; status: string }> } | null | undefined
   gitLoading: boolean
+  saveStatus: 'idle' | 'saving' | 'saved' | 'error'
 }
 
 const STORAGE_KEY = 'deepinsight:workspace:v2'
@@ -27,9 +29,11 @@ let state: WorkspaceState = {
   openFiles: {},
   openPathList: [],
   pythonEnv: null,
+  customPythonPath: null,
   installStatus: null,
   gitStatus: undefined,
   gitLoading: false,
+  saveStatus: 'idle',
 }
 
 const listeners = new Set<Listener>()
@@ -39,7 +43,8 @@ const persist = () => {
     const payload = { 
       root: state.root,
       openPathList: state.openPathList,
-      activePath: state.activePath 
+      activePath: state.activePath,
+      customPythonPath: state.customPythonPath
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
   } catch (e) {
@@ -59,6 +64,7 @@ const load = () => {
       root: typeof obj.root === 'string' ? obj.root : null,
       openPathList: Array.isArray(obj.openPathList) ? obj.openPathList : [],
       activePath: typeof obj.activePath === 'string' ? obj.activePath : null,
+      customPythonPath: typeof obj.customPythonPath === 'string' ? obj.customPythonPath : null,
     }
     // We don't load contents here, they will be loaded when needed
   } catch (e) {
@@ -107,6 +113,29 @@ export async function openWorkspaceFolder() {
   await refreshDir('')
   await detectPythonEnv()
   await refreshGitStatus()
+}
+
+export function closeWorkspaceFolder() {
+  state = {
+    ...state,
+    root: null,
+    entriesByDir: {},
+    expanded: {},
+    loadingDirs: {},
+    activePath: null,
+    openFiles: {},
+    openPathList: [],
+    pythonEnv: null,
+    customPythonPath: null,
+    installStatus: null,
+    gitStatus: undefined,
+  }
+  notify()
+}
+
+export function setCustomPythonPath(path: string | null) {
+  state = { ...state, customPythonPath: path }
+  notify()
 }
 
 export async function refreshGitStatus() {
@@ -343,9 +372,32 @@ export async function saveFile(path: string) {
   const root = state.root
   const current = state.openFiles[path]
   if (!current || !current.dirty) return
-  await w.writeFile(root, path, current.content)
-  state = { ...state, openFiles: { ...state.openFiles, [path]: { content: current.content, dirty: false } } }
+  
+  state = { ...state, saveStatus: 'saving' }
   notify()
+
+  try {
+    await w.writeFile(root, path, current.content)
+    state = { 
+      ...state, 
+      openFiles: { ...state.openFiles, [path]: { content: current.content, dirty: false } },
+      saveStatus: 'saved'
+    }
+    notify()
+    
+    // Auto reset to idle after 2 seconds
+    setTimeout(() => {
+      if (state.saveStatus === 'saved') {
+        state = { ...state, saveStatus: 'idle' }
+        notify()
+      }
+    }, 2000)
+  } catch (e) {
+    console.error('Failed to save file:', e)
+    state = { ...state, saveStatus: 'error' }
+    notify()
+  }
+
   // Refresh git status after save to update markers
   void refreshGitStatus()
 }
@@ -373,17 +425,22 @@ export async function renamePath(from: string, to: string) {
   const w = api()
   if (!w || !state.root) return
   await w.rename(state.root, from, to)
+  
+  const nextOpenList = state.openPathList.map(p => p === from ? to : p)
+  const nextOpenFiles = { ...state.openFiles }
+  const moved = nextOpenFiles[from]
+  if (moved) {
+    delete nextOpenFiles[from]
+    nextOpenFiles[to] = moved
+  }
+
   state = {
     ...state,
     activePath: state.activePath === from ? to : state.activePath,
+    openPathList: nextOpenList,
+    openFiles: nextOpenFiles,
   }
-  const moved = state.openFiles[from]
-  if (moved) {
-    const next = { ...state.openFiles }
-    delete next[from]
-    next[to] = moved
-    state = { ...state, openFiles: next }
-  }
+  
   notify()
   await refreshDir(from.split('/').slice(0, -1).join('/'))
   await refreshDir(to.split('/').slice(0, -1).join('/'))
@@ -394,12 +451,25 @@ export async function deletePath(path: string) {
   const w = api()
   if (!w || !state.root) return
   await w.delete(state.root, path)
-  const dir = path.split('/').slice(0, -1).join('/')
-  if (state.activePath === path) state = { ...state, activePath: null }
-  const next = { ...state.openFiles }
-  delete next[path]
-  state = { ...state, openFiles: next }
+  
+  const nextOpenList = state.openPathList.filter(p => p !== path)
+  const nextOpenFiles = { ...state.openFiles }
+  delete nextOpenFiles[path]
+
+  let nextActive = state.activePath
+  if (nextActive === path) {
+    nextActive = nextOpenList.length > 0 ? nextOpenList[nextOpenList.length - 1] : null
+  }
+
+  state = {
+    ...state,
+    activePath: nextActive,
+    openPathList: nextOpenList,
+    openFiles: nextOpenFiles,
+  }
+
   notify()
+  const dir = path.split('/').slice(0, -1).join('/')
   await refreshDir(dir)
   void refreshGitStatus()
 }

@@ -279,9 +279,9 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           <div className={`flex items-center gap-1.5 px-3 py-1 border-t-2 border-x rounded-t-sm shadow-sm text-xs font-medium ${
             isSpecialFile 
               ? 'bg-white border-t-amber-500 border-x-amber-100 text-amber-900' 
-              : 'bg-white border-t-indigo-500 border-x-slate-200 text-slate-700'
+              : 'bg-white border-t-emerald-500 border-x-slate-200 text-slate-700'
           }`}>
-            {isSpecialFile ? <Settings className="w-3.5 h-3.5 text-amber-500" /> : <FileCode className="w-3.5 h-3.5 text-indigo-500" />}
+            {isSpecialFile ? <Settings className="w-3.5 h-3.5 text-amber-500" /> : <FileCode className="w-3.5 h-3.5 text-emerald-500" />}
             <span>{fileName}</span>
           </div>
         </div>
@@ -313,7 +313,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           <div className="flex-1 relative">
             {isSpecialFile && (
               <button 
-                className="absolute top-2 right-12 z-10 px-3 py-1 bg-indigo-600 text-white text-[10px] font-bold rounded shadow-sm hover:bg-indigo-700 transition-all uppercase tracking-wider"
+                className="absolute top-2 right-12 z-10 px-3 py-1 bg-emerald-600 text-white text-[10px] font-bold rounded shadow-sm hover:bg-emerald-700 transition-all uppercase tracking-wider"
                 onClick={() => setForcedCodeMode(false)}
               >
                 返回可视化编辑
@@ -441,7 +441,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
               onClick={onRefreshGit}
               title="点击刷新 Git 状态"
             >
-              <GitBranch className="w-3 h-3 text-slate-400 group-hover/git:text-indigo-500 transition-colors" />
+              <GitBranch className="w-3 h-3 text-slate-400 group-hover/git:text-emerald-500 transition-colors" />
               <span className="text-slate-600 font-semibold">{gitStatus.branch}</span>
               {gitStatus.changes > 0 && (
                 <span className="text-orange-500">({gitStatus.changes})</span>
@@ -470,7 +470,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             <Hash className="w-3 h-3" />
             <span>UTF-8</span>
           </div>
-          <div className="flex items-center gap-1.5 uppercase tracking-wider text-indigo-600 shrink-0">
+          <div className="flex items-center gap-1.5 uppercase tracking-wider text-emerald-600 shrink-0">
             {language}
           </div>
         </div>

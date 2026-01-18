@@ -208,7 +208,7 @@ export const GitPanel: React.FC<GitPanelProps> = ({ gitStatus, gitLoading, onOpe
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button 
                             onClick={(e) => { e.stopPropagation(); onShowDiff(file.path); }}
-                            className="p-1 hover:bg-slate-200 rounded text-slate-400 hover:text-indigo-500 transition-colors"
+                            className="p-1 hover:bg-slate-200 rounded text-slate-400 hover:text-emerald-500 transition-colors"
                             title="查看差异"
                           >
                             <FileDiff className="w-3.5 h-3.5" />
@@ -273,7 +273,7 @@ export const GitPanel: React.FC<GitPanelProps> = ({ gitStatus, gitLoading, onOpe
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button 
                             onClick={(e) => { e.stopPropagation(); onShowDiff(file.path); }}
-                            className="p-1 hover:bg-slate-200 rounded text-slate-400 hover:text-indigo-500 transition-colors"
+                            className="p-1 hover:bg-slate-200 rounded text-slate-400 hover:text-emerald-500 transition-colors"
                             title="查看差异"
                           >
                             <FileDiff className="w-3.5 h-3.5" />

@@ -63,12 +63,12 @@ function MenuItem({ item, isHovered, onHover }: { item: ContextMenuItem; isHover
     ? 'text-slate-400 cursor-not-allowed'
     : item.danger
       ? 'text-red-600 hover:bg-red-50 hover:text-red-700'
-      : 'text-slate-700 hover:bg-indigo-50 hover:text-indigo-700'
+      : 'text-slate-700 hover:bg-emerald-50 hover:text-emerald-700'
 
   return (
     <div className="relative" onMouseEnter={onHover}>
       <button
-        className={`w-full text-left text-[11px] px-2 py-1.5 rounded-md transition-all flex items-center gap-2 font-medium group ${cls} ${isHovered ? 'bg-indigo-50 text-indigo-700' : ''}`}
+        className={`w-full text-left text-[11px] px-2 py-1.5 rounded-md transition-all flex items-center gap-2 font-medium group ${cls} ${isHovered ? 'bg-emerald-50 text-emerald-700' : ''}`}
         disabled={item.disabled}
         onClick={() => {
           if (item.disabled || hasSubmenu) return
@@ -98,7 +98,7 @@ function MenuItem({ item, isHovered, onHover }: { item: ContextMenuItem; isHover
             return (
               <button
                 key={idx}
-                className="w-full text-left text-[11px] px-2 py-1.5 rounded-md hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 transition-all flex items-center gap-2 font-medium"
+                className="w-full text-left text-[11px] px-2 py-1.5 rounded-md hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 transition-all flex items-center gap-2 font-medium"
                 onClick={(e) => {
                   e.stopPropagation()
                   hideContextMenu()

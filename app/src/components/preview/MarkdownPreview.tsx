@@ -27,10 +27,10 @@ export function MarkdownPreview({ value }: { value: string }) {
             ul: ({node, ...props}) => <ul className="list-disc pl-6 my-4 space-y-2 text-slate-700" {...props} />,
             ol: ({node, ...props}) => <ol className="list-decimal pl-6 my-4 space-y-2 text-slate-700" {...props} />,
             li: ({node, ...props}) => <li className="pl-1" {...props} />,
-            blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-indigo-100 bg-indigo-50/30 pl-6 py-2 my-6 italic text-slate-600 rounded-r-lg" {...props} />,
+            blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-emerald-100 bg-emerald-50/30 pl-6 py-2 my-6 italic text-slate-600 rounded-r-lg" {...props} />,
             code: ({node, inline, ...props}: any) => 
               inline 
-                ? <code className="bg-slate-100 px-1.5 py-0.5 rounded text-indigo-600 font-mono text-[13px]" {...props} />
+                ? <code className="bg-slate-100 px-1.5 py-0.5 rounded text-emerald-600 font-mono text-[13px]" {...props} />
                 : <code className="block bg-slate-50 p-6 rounded-xl border border-slate-100 font-mono text-[13px] my-6 overflow-x-auto shadow-sm" {...props} />,
             pre: ({node, ...props}) => <pre className="bg-transparent p-0 m-0" {...props} />,
             table: ({node, ...props}) => (
@@ -40,7 +40,7 @@ export function MarkdownPreview({ value }: { value: string }) {
             ),
             th: ({node, ...props}) => <th className="bg-slate-50 px-4 py-3 text-left font-bold border-b border-slate-200 text-slate-700" {...props} />,
             td: ({node, ...props}) => <td className="border-b border-slate-100 px-4 py-3 text-slate-600" {...props} />,
-            a: ({node, ...props}) => <a className="text-indigo-600 hover:text-indigo-700 underline underline-offset-4 decoration-indigo-200 transition-colors" {...props} />,
+            a: ({node, ...props}) => <a className="text-emerald-600 hover:text-emerald-700 underline underline-offset-4 decoration-emerald-200 transition-colors" {...props} />,
             hr: ({node, ...props}) => <hr className="my-12 border-slate-100" {...props} />,
             img: ({node, ...props}) => <img className="rounded-xl shadow-md mx-auto my-8 max-w-full" {...props} />,
           }}

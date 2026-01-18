@@ -10,14 +10,14 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from .executor import execute_python, execute_python_project, execute_python_workspace
 from .models import WsClientMessage, WsServerMessage
-from .hw import read_gpu_snapshot
+from .hw import read_hw_snapshot, get_system_info
 from .security import check_code_safety
 
 
 async def _ws_send(websocket: WebSocket, payload: WsServerMessage) -> None:
     await websocket.send_text(json.dumps(payload, ensure_ascii=False))
 
-def _parse_metric_line(line: str) -> Optional[tuple[str, float, int]]:
+def _parse_metric_line(line: str) -> Optional[tuple[str, Any, int]]:
     trimmed = line.strip()
     if not trimmed.startswith("__METRIC__"):
         return None
@@ -28,7 +28,8 @@ def _parse_metric_line(line: str) -> Optional[tuple[str, float, int]]:
         return None
     try:
         obj = json.loads(raw)
-    except Exception:
+    except Exception as e:
+        print(f"Failed to parse metric JSON: {e}, raw: {raw}")
         return None
     if not isinstance(obj, dict):
         return None
@@ -37,15 +38,12 @@ def _parse_metric_line(line: str) -> Optional[tuple[str, float, int]]:
     step = obj.get("step", 0)
     if not isinstance(name, str):
         return None
-    try:
-        value_f = float(value)
-    except Exception:
-        return None
+    # 允许任意类型的 value，不仅仅是 float
     try:
         step_i = int(step)
     except Exception:
         step_i = 0
-    return (name, value_f, step_i)
+    return (name, value, step_i)
 
 def _is_oom_line(line: str) -> bool:
     low = line.lower()
@@ -89,14 +87,25 @@ async def handle_ws(websocket: WebSocket) -> None:
 
     hw_task: asyncio.Task[None] | None = None
     try:
+        # 1. 发送连接成功消息
         await _ws_send(
             websocket,
             {"type": "hello", "python": sys.version, "executable": sys.executable},
         )
 
+        # 2. 发送详细系统信息 (硬件、环境等)
+        try:
+            sys_info = get_system_info()
+            await _ws_send(websocket, {"type": "system_info", "data": sys_info})
+            print(f"System info sent: {sys_info['os']['hostname']}")
+        except Exception as e:
+            print(f"Failed to get/send system info: {e}")
+            import traceback
+            traceback.print_exc()
+
         async def hw_publisher() -> None:
             while True:
-                ts_ms, gpus, err = read_gpu_snapshot()
+                ts_ms, gpus, cpu, err = read_hw_snapshot()
                 await _ws_send(
                     websocket,
                     {
@@ -113,6 +122,10 @@ async def handle_ws(websocket: WebSocket) -> None:
                             }
                             for g in gpus
                         ],
+                        "cpu": {
+                            "utilization": cpu.utilization,
+                            "temp_c": cpu.temp_c,
+                        },
                         "error": err,
                     },
                 )
@@ -145,6 +158,15 @@ async def handle_ws(websocket: WebSocket) -> None:
                 cancel_event.set()
                 continue
 
+            if isinstance(msg, dict) and msg.get("type") == "request_system_info":
+                try:
+                    sys_info = get_system_info()
+                    await _ws_send(websocket, {"type": "system_info", "data": sys_info})
+                    print(f"System info refreshed: {sys_info['os']['hostname']}")
+                except Exception as e:
+                    print(f"Failed to refresh system info: {e}")
+                continue
+
             if isinstance(msg, dict) and msg.get("type") == "exec":
                 if current_task is not None and not current_task.done():
                     await _ws_send(
@@ -158,19 +180,23 @@ async def handle_ws(websocket: WebSocket) -> None:
                 files_raw = msg.get("files")
                 entry_raw = msg.get("entry")
                 workspace_root = msg.get("workspace_root")
+                python_exe = msg.get("python_exe")
 
-                violations = check_code_safety(code)
-                if violations:
-                    head = violations[0]
-                    await _ws_send(
-                        websocket,
-                        {
-                            "type": "error",
-                            "message": f"安全检查未通过：禁止调用 {head.name} (line {head.lineno})",
-                            "run_id": None,
-                        },
-                    )
-                    continue
+                # If it's a code-only run, check safety
+                if not workspace_root and not files_raw:
+                    violations = check_code_safety(code)
+                    if violations:
+                        head = violations[0]
+                        await _ws_send(
+                            websocket,
+                            {
+                                "type": "error",
+                                "message": f"安全检查未通过：禁止调用 {head.name} (line {head.lineno})",
+                                "run_id": None,
+                            },
+                        )
+                        continue
+                
                 current_run_id = str(uuid4())
                 cancel_event = asyncio.Event()
                 run_id = current_run_id
@@ -234,6 +260,7 @@ async def handle_ws(websocket: WebSocket) -> None:
                                 on_stdout=on_stdout,
                                 on_stderr=on_stderr,
                                 cancel_event=cancel_event,
+                                python_exe=python_exe,
                             )
                         elif isinstance(files_raw, list) and isinstance(entry_raw, str):
                             files: list[tuple[str, str]] = []

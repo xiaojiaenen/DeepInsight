@@ -6,6 +6,7 @@ import { FilePanel } from '../components/editor/FilePanel'
 import { DiskWorkspacePanel } from '../components/editor/DiskWorkspacePanel'
 import { GitPanel } from '../components/editor/GitPanel'
 import { SearchPanel } from '../components/editor/SearchPanel'
+import { SystemInfoPanel } from '../components/system/SystemInfoPanel'
 import { ModelVisualizer } from '../components/visualizer/ModelVisualizer'
 import { QuickOpen } from '../components/editor/QuickOpen'
 import { MarkdownPreview } from '../components/preview/MarkdownPreview'
@@ -86,6 +87,7 @@ type WorkspacePageProps = {
   onStop: () => void
 }
 
+import { cn } from '../components/layout/cn'
 import { 
   FileCode, 
   GitBranch, 
@@ -95,7 +97,9 @@ import {
   ChevronLeft,
   ChevronRight,
   BrainCircuit,
-  Boxes
+  Boxes,
+  Cpu as CpuIcon,
+  Monitor as MonitorIcon
 } from 'lucide-react'
 
 type SidebarTab = 'files' | 'search' | 'git' | 'visualizer' | 'settings'
@@ -107,6 +111,8 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({ pythonBadge, isRun
   const [terminalCollapsed, setTerminalCollapsed] = useState(false)
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('files')
   const [sidebarVisible, setSidebarVisible] = useState(true)
+  const [visualizerExpanded, setVisualizerExpanded] = useState(false)
+  const [showSystemInfo, setShowSystemInfo] = useState(false)
   const [quickOpenVisible, setQuickOpenVisible] = useState(false)
 
   const [diffPath, setDiffPath] = useState<string | null>(null)
@@ -259,6 +265,13 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({ pythonBadge, isRun
           >
             <BrainCircuit className="w-5 h-5" />
           </button>
+          <button 
+            className={`p-2 rounded-lg transition-colors ${showSystemInfo ? 'text-white bg-white/10' : 'text-slate-400 hover:text-white'}`}
+            onClick={() => setShowSystemInfo(!showSystemInfo)}
+            title="硬件与系统信息"
+          >
+            <CpuIcon className="w-5 h-5" />
+          </button>
           <div className="flex-1" />
           <button className="p-2 text-slate-400 hover:text-white transition-colors" title="设置">
             <SettingsIcon className="w-5 h-5" />
@@ -267,7 +280,10 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({ pythonBadge, isRun
 
         {/* 侧边栏内容区 */}
         {sidebarVisible && (
-          <div className="w-72 flex flex-col border-r border-slate-200 bg-white">
+          <div className={cn(
+            "flex flex-col border-r border-slate-200 bg-white transition-all duration-300",
+            sidebarTab === 'visualizer' && visualizerExpanded ? "w-1/2" : "w-72"
+          )}>
             {sidebarTab === 'files' && (
               diskMode ? (
                 <DiskWorkspacePanel
@@ -310,82 +326,66 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({ pythonBadge, isRun
               )
             )}
             {sidebarTab === 'visualizer' && (
-              <ModelVisualizer />
+              <ModelVisualizer 
+                isExpanded={visualizerExpanded} 
+                onToggleExpand={() => setVisualizerExpanded(!visualizerExpanded)} 
+              />
             )}
           </div>
         )}
 
         {/* 主编辑区 */}
-        <div className="flex-1 min-w-0 flex flex-col relative overflow-hidden bg-white">
-          {!sidebarVisible && (
-            <button 
-              className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-12 bg-white border border-l-0 border-slate-200 rounded-r flex items-center justify-center z-10 hover:bg-slate-50 text-slate-400"
-              onClick={() => setSidebarVisible(true)}
-            >
-              <ChevronRight className="w-3 h-3" />
-            </button>
-          )}
-          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-            {diskMode && (
-              <EditorTabs 
-                openFiles={ws.openPathList} 
-                activePath={ws.activePath} 
-                onSelect={(p) => {
-                  setDiffPath(null);
-                  void openDiskFile(p);
-                }} 
-                onClose={(p) => closeDiskFile(p)} 
-              />
+        <div className="flex-1 min-w-0 flex relative overflow-hidden bg-white">
+          <div className="flex-1 flex flex-col min-w-0">
+            {!sidebarVisible && (
+              <button 
+                className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-12 bg-white border border-l-0 border-slate-200 rounded-r flex items-center justify-center z-10 hover:bg-slate-50 text-slate-400"
+                onClick={() => setSidebarVisible(true)}
+              >
+                <ChevronRight className="w-3 h-3" />
+              </button>
             )}
-            <div className="flex-1 min-h-0 flex flex-col overflow-hidden shadow-[inset_1px_0_0_rgba(0,0,0,0.05)]">
-              {diffPath ? (
-                <GitDiffView path={diffPath} onClose={() => setDiffPath(null)} />
-              ) : !currentPath ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-slate-400 bg-white p-12">
-                  <div className="w-24 h-24 rounded-2xl bg-slate-50 flex items-center justify-center mb-6 shadow-sm border border-slate-100">
-                    <FileCode className="w-10 h-10 text-slate-200" />
-                  </div>
-                  <h2 className="text-lg font-bold text-slate-900 mb-2">欢迎使用 DeepInsight</h2>
-                  <p className="text-sm text-slate-500 mb-8 max-w-xs text-center">
-                    从左侧文件树选择一个文件开始编辑，或使用快捷键快速操作。
-                  </p>
-                  <div className="grid grid-cols-2 gap-4 w-full max-w-md">
-                    {[
-                      { label: '运行项目', key: 'Ctrl + Enter' },
-                      { label: '查找文件', key: 'Ctrl + P' },
-                      { label: '切换终端', key: 'Ctrl + `' },
-                      { label: '全局搜索', key: 'Ctrl + Shift + F' },
-                    ].map(item => (
-                      <div key={item.label} className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50/50">
-                        <span className="text-xs text-slate-600">{item.label}</span>
-                        <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-400 shadow-sm">{item.key}</kbd>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : currentExt === 'md' ? (
-                <MarkdownEditorView
-                  path={currentPath ?? undefined}
-                  value={diskMode ? (activeContent ?? '') : (activeFile?.content ?? '')}
-                  gitStatus={diskMode ? ws.gitStatus : null}
-                  pythonEnv={diskMode ? ws.pythonEnv : null}
-                  onRefreshGit={() => void refreshGitStatus()}
-                  onRefreshPython={() => void detectPythonEnv()}
-                  isSpecialFile={isSpecialFile}
-                  onChange={(v) => {
-                    if (diskMode) {
-                      const p = ws.activePath
-                      if (p) updateDiskFile(p, v)
-                    } else if (activeFile) {
-                      updateFileContent(activeFile.id, v)
-                    }
-                  }}
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              {diskMode && (
+                <EditorTabs 
+                  openFiles={ws.openPathList} 
+                  activePath={ws.activePath} 
+                  onSelect={(p) => {
+                    setDiffPath(null);
+                    void openDiskFile(p);
+                  }} 
+                  onClose={(p) => closeDiskFile(p)} 
                 />
-              ) : (
-                <div className={`flex-1 min-h-0 ${isSpecialFile ? 'bg-slate-50/30' : ''}`}>
-                  <CodeEditor
+              )}
+              <div className="flex-1 min-h-0 flex flex-col overflow-hidden shadow-[inset_1px_0_0_rgba(0,0,0,0.05)]">
+                {diffPath ? (
+                  <GitDiffView path={diffPath} onClose={() => setDiffPath(null)} />
+                ) : !currentPath ? (
+                  <div className="flex-1 flex flex-col items-center justify-center text-slate-400 bg-white p-12">
+                    <div className="w-24 h-24 rounded-2xl bg-slate-50 flex items-center justify-center mb-6 shadow-sm border border-slate-100">
+                      <FileCode className="w-10 h-10 text-slate-200" />
+                    </div>
+                    <h2 className="text-lg font-bold text-slate-900 mb-2">欢迎使用 DeepInsight</h2>
+                    <p className="text-sm text-slate-500 mb-8 max-w-xs text-center">
+                      从左侧文件树选择一个文件开始编辑，或使用快捷键快速操作。
+                    </p>
+                    <div className="grid grid-cols-2 gap-4 w-full max-w-md">
+                      {[
+                        { label: '运行项目', key: 'Ctrl + Enter' },
+                        { label: '查找文件', key: 'Ctrl + P' },
+                        { label: '切换终端', key: 'Ctrl + `' },
+                        { label: '全局搜索', key: 'Ctrl + Shift + F' },
+                      ].map(item => (
+                        <div key={item.label} className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50/50">
+                          <span className="text-xs text-slate-600">{item.label}</span>
+                          <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-400 shadow-sm">{item.key}</kbd>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : currentExt === 'md' ? (
+                  <MarkdownEditorView
                     path={currentPath ?? undefined}
-                    language={currentLanguage}
                     value={diskMode ? (activeContent ?? '') : (activeFile?.content ?? '')}
                     gitStatus={diskMode ? ws.gitStatus : null}
                     pythonEnv={diskMode ? ws.pythonEnv : null}
@@ -401,16 +401,44 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({ pythonBadge, isRun
                       }
                     }}
                   />
-                </div>
-              )}
+                ) : (
+                  <div className={`flex-1 min-h-0 ${isSpecialFile ? 'bg-slate-50/30' : ''}`}>
+                    <CodeEditor
+                      path={currentPath ?? undefined}
+                      language={currentLanguage}
+                      value={diskMode ? (activeContent ?? '') : (activeFile?.content ?? '')}
+                      gitStatus={diskMode ? ws.gitStatus : null}
+                      pythonEnv={diskMode ? ws.pythonEnv : null}
+                      onRefreshGit={() => void refreshGitStatus()}
+                      onRefreshPython={() => void detectPythonEnv()}
+                      isSpecialFile={isSpecialFile}
+                      onChange={(v) => {
+                        if (diskMode) {
+                          const p = ws.activePath
+                          if (p) updateDiskFile(p, v)
+                        } else if (activeFile) {
+                          updateFileContent(activeFile.id, v)
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+
+          {/* 硬件信息面板 - 与编辑器同级 */}
+          {showSystemInfo && (
+            <div className="w-80 border-l border-slate-200 flex flex-col bg-white shrink-0">
+              <SystemInfoPanel />
+            </div>
+          )}
         </div>
       </div>
 
       {!terminalCollapsed && (
         <div 
-          className="h-1.5 bg-slate-200 hover:bg-indigo-400 cursor-ns-resize transition-colors relative z-30"
+          className="h-1.5 bg-slate-200 hover:bg-emerald-400 cursor-ns-resize transition-colors relative z-30"
           onMouseDown={onMouseDown}
         >
           {/* 增加点击区域 */}
